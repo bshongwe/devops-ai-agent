@@ -1,0 +1,54 @@
+{
+  "name": "CI-CD Agent",
+  "url": "https://github.com/your-org/ci-cd-agent",
+  "hook_attributes": {
+    "url": "https://api.ci-cd-agent.com/webhooks/github"
+  },
+  "redirect_url": "https://ci-cd-agent.com/auth/github/callback",
+  "callback_urls": [
+    "https://ci-cd-agent.com/auth/github/callback"
+  ],
+  "description": "Automated CI/CD orchestration agent with GitHub integration, pipeline generation, and deployment management through ArgoCD GitOps workflows.",
+  "public": false,
+  "default_permissions": {
+    "actions": "write",
+    "administration": "read",
+    "checks": "write",
+    "contents": "write",
+    "deployments": "write",
+    "environments": "read",
+    "issues": "read",
+    "metadata": "read",
+    "pages": "read",
+    "pull_requests": "write",
+    "repository_hooks": "write",
+    "statuses": "write",
+    "workflows": "write"
+  },
+  "default_events": [
+    "check_run",
+    "check_suite", 
+    "create",
+    "delete",
+    "deployment",
+    "deployment_status",
+    "fork",
+    "installation",
+    "installation_repositories",
+    "issue_comment",
+    "issues",
+    "page_build",
+    "pull_request",
+    "pull_request_review",
+    "pull_request_review_comment",
+    "push",
+    "release",
+    "repository",
+    "status",
+    "workflow_dispatch",
+    "workflow_job",
+    "workflow_run"
+  ],
+  "request_oauth_on_install": false,
+  "setup_on_update": true
+}
