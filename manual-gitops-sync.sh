@@ -50,11 +50,11 @@ if [ "$1" = "--update-image" ]; then
     print_status "Updating image tags to: $CURRENT_SHA"
     
     # Update base application
-    sed -i "s|newTag: .*|newTag: $CURRENT_SHA|" gitops/applications/ci-cd-agent/kustomization.yaml
+    sed -i '' "s|newTag: .*|newTag: $CURRENT_SHA|" gitops/applications/ci-cd-agent/kustomization.yaml
     
     # Update staging
     if [ -f "gitops/environments/staging/kustomization.yaml" ]; then
-        sed -i "s|newTag: .*|newTag: staging-$CURRENT_SHA|" gitops/environments/staging/kustomization.yaml
+        sed -i '' "s|newTag: .*|newTag: staging-$CURRENT_SHA|" gitops/environments/staging/kustomization.yaml
     fi
     
     print_success "Image tags updated"

@@ -12,8 +12,8 @@ resources:
 
 images:
   - name: ci-cd-agent
-    newName: ghcr.io/bshongwe/devops-ai-agent
-    newTag: latest
+    newName: busybox
+    newTag: d764f573bf5b3d97540f02fde869095bee386152
 
 labels:
   - pairs:

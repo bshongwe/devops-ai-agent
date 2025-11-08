@@ -15,7 +15,7 @@ commonLabels:
 images:
   - name: ci-cd-agent
     newName: ghcr.io/bshongwe/devops-ai-agent
-    newTag: staging
+    newTag: staging-d764f573bf5b3d97540f02fde869095bee386152
 
 replicas:
   - name: ci-cd-agent
