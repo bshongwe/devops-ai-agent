@@ -1,0 +1,133 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ci-cd-agent
+  namespace: argocd
+  labels:
+    app: ci-cd-agent
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  # Source configuration
+  source:
+    repoURL: https://github.com/your-org/ci-cd-agent-gitops
+    targetRevision: HEAD
+    path: applications/ci-cd-agent/overlays/production
+    
+  # Destination configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ci-cd-agent
+    
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+        
+  # Health and sync configuration
+  revisionHistoryLimit: 10
+  
+  # Ignore certain differences
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data/config.yaml
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ci-cd-agent-project
+  namespace: argocd
+spec:
+  description: CI-CD Agent project for managing deployment pipelines
+  
+  # Source repositories
+  sourceRepos:
+    - https://github.com/your-org/ci-cd-agent-gitops
+    - https://github.com/your-org/ci-cd-agent
+    
+  # Destination clusters and namespaces
+  destinations:
+    - namespace: 'ci-cd-agent*'
+      server: https://kubernetes.default.svc
+    - namespace: 'staging*'
+      server: https://kubernetes.default.svc
+    - namespace: 'production*'
+      server: https://kubernetes.default.svc
+      
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      
+  # Namespace resource whitelist  
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: apps
+      kind: DaemonSet
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: policy
+      kind: PodDisruptionBudget
+      
+  # RBAC roles
+  roles:
+    - name: admin
+      description: Admin access to ci-cd-agent project
+      policies:
+        - p, proj:ci-cd-agent-project:admin, applications, *, ci-cd-agent-project/*, allow
+        - p, proj:ci-cd-agent-project:admin, repositories, *, *, allow
+      groups:
+        - ci-cd-agent-admins
+        
+    - name: developer
+      description: Developer access to ci-cd-agent project  
+      policies:
+        - p, proj:ci-cd-agent-project:developer, applications, get, ci-cd-agent-project/*, allow
+        - p, proj:ci-cd-agent-project:developer, applications, sync, ci-cd-agent-project/*, allow
+      groups:
+        - ci-cd-agent-developers
