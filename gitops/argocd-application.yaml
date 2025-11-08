@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ci-cd-agent
+  namespace: argocd
+  labels:
+    app: ci-cd-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bshongwe/devops-ai-agent.git
+    targetRevision: main
+    path: gitops/applications/ci-cd-agent
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ci-cd-agent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data
+  info:
+    - name: Description
+      value: "CI/CD Agent - GitHub Actions orchestration and pipeline management"
+    - name: Repository
+      value: "https://github.com/bshongwe/devops-ai-agent"
+    - name: Documentation
+      value: "https://github.com/bshongwe/devops-ai-agent/blob/main/README.md"
