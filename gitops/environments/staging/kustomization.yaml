@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ci-cd-agent-staging
+
+resources:
+  - ../../applications/ci-cd-agent
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+  tier: development
+
+images:
+  - name: ci-cd-agent
+    newName: ghcr.io/bshongwe/devops-ai-agent
+    newTag: staging
+
+replicas:
+  - name: ci-cd-agent
+    count: 1
+
+patchesStrategicMerge:
+  - patches/staging-config.yaml
+  - patches/staging-resources.yaml
+
+configMapGenerator:
+  - name: ci-cd-agent-config
+    behavior: merge
+    literals:
+      - NODE_ENV=staging
+      - LOG_LEVEL=debug
+      - ENABLE_METRICS=true

@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: ci-cd-agent
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+images:
+  - name: ci-cd-agent
+    newName: ghcr.io/bshongwe/devops-ai-agent
+    newTag: latest
+
+labels:
+  - pairs:
+      app: ci-cd-agent
+      version: v1.0.0
+
+namePrefix: ci-cd-agent-
+
+namespace: ci-cd-agent
+
+replicas:
+  - name: ci-cd-agent
+    count: 2
+
+patches:
+  - path: patches/resource-limits.yaml
+
+configMapGenerator:
+  - name: ci-cd-agent-config
+    literals:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
