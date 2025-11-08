@@ -1,0 +1,194 @@
+# Compiled output
+/dist
+/build
+/node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# Tests
+/coverage
+/.nyc_output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# IDEs and editors
+/.idea
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.swp
+*.swo
+
+# Environment variables (CRITICAL - Keep all env files secret)
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+database.json
+
+# Docker files (development)
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+.cache/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn files
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Security & Secrets (CRITICAL)
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# GitHub App & Auth (CRITICAL)
+github-app-private-key.pem
+*.private-key.pem
+auth-config.json
+
+# Kubernetes & ArgoCD secrets (CRITICAL)
+argocd-secret.yaml
+k8s-secrets/
+*.kubeconfig
+kustomization.yaml.bak
+
+# CI/CD sensitive files
+.github/workflows/*.local.yml
+deployment-config.local.yml
+
+# Monitoring & Logs
+/logs
+prometheus-data/
+grafana-data/
+.monitoring/
+
+# Development utilities
+.dev/
+.local/
+local-setup.sh
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Runtime directories
+.next/
+out/
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Serverless directories
+.serverless/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Webpack
+.webpack/
+
+# Electron-builder output
+/dist_electron/
+
+# SvelteKit build / generate output
+.svelte-kit
+
+# End of https://www.toptal.com/developers/gitignore/api/node
