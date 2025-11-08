@@ -1,0 +1,725 @@
+openapi: 3.0.3
+info:
+  title: CI-CD Agent API
+  description: |
+    Comprehensive CI-CD orchestration agent with GitHub App integration, pipeline generation, 
+    and webhook handling for automated deployment workflows.
+    
+    ## Features
+    - GitHub App authentication with JWT tokens
+    - Pipeline generation and orchestration
+    - Webhook handling for GitHub events
+    - Docker containerization support
+    - ArgoCD GitOps deployment integration
+    
+  version: 1.0.0
+  contact:
+    name: CI-CD Agent Team
+    email: team@ci-cd-agent.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.ci-cd-agent.com
+    description: Production server
+  - url: https://staging-api.ci-cd-agent.com  
+    description: Staging server
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+  # Pipeline Management
+  /pipelines:
+    get:
+      tags: [pipelines]
+      summary: List all pipelines
+      description: Retrieve a list of all CI/CD pipelines
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pipelines retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pipeline'
+    post:
+      tags: [pipelines]
+      summary: Generate new CI/CD pipeline
+      description: Generate a new CI/CD pipeline configuration based on project specifications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePipelineRequest'
+      responses:
+        '201':
+          description: Pipeline generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /pipelines/{id}:
+    get:
+      tags: [pipelines]
+      summary: Get pipeline details
+      description: Retrieve detailed information about a specific pipeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Pipeline identifier
+      responses:
+        '200':
+          description: Pipeline details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+        '404':
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /pipelines/{id}/execute:
+    post:
+      tags: [pipelines]
+      summary: Execute pipeline
+      description: Start execution of a specific pipeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Pipeline identifier
+      responses:
+        '200':
+          description: Pipeline execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineExecution'
+        '404':
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /pipelines/{id}/status:
+    get:
+      tags: [pipelines]
+      summary: Get pipeline execution status
+      description: Retrieve current status and logs of pipeline execution
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Pipeline execution identifier
+      responses:
+        '200':
+          description: Pipeline status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineStatus'
+
+  # GitHub Integration
+  /github/app/info:
+    get:
+      tags: [github]
+      summary: Get GitHub App information
+      description: Retrieve information about the configured GitHub App
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: App information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubApp'
+
+  /github/installations:
+    get:
+      tags: [github]
+      summary: List GitHub App installations
+      description: Retrieve list of GitHub App installations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Installations retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubInstallation'
+
+  /github/installations/{id}/repositories:
+    get:
+      tags: [github]
+      summary: Get installation repositories
+      description: Retrieve repositories accessible to a specific installation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Installation identifier
+      responses:
+        '200':
+          description: Repositories retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubRepository'
+
+  /github/installations/{id}/repositories/{repo}/dispatch:
+    post:
+      tags: [github]
+      summary: Trigger repository dispatch event
+      description: Send a repository dispatch event to trigger workflows
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Installation identifier
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository name (owner/repo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchEvent'
+      responses:
+        '200':
+          description: Event dispatched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchResponse'
+
+  /github/installations/{id}/token:
+    get:
+      tags: [github]
+      summary: Get installation access token
+      description: Generate and retrieve installation access token
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Installation identifier
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallationToken'
+
+  # Webhook Endpoints
+  /webhooks/github:
+    post:
+      tags: [webhooks]
+      summary: Handle GitHub webhook events
+      description: Process incoming GitHub webhook events
+      parameters:
+        - name: x-github-event
+          in: header
+          required: true
+          schema:
+            type: string
+          description: GitHub event type
+        - name: x-hub-signature-256
+          in: header
+          required: true
+          schema:
+            type: string
+          description: GitHub webhook signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          description: Invalid webhook signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/github/installation:
+    post:
+      tags: [webhooks]
+      summary: Handle GitHub App installation events
+      description: Process GitHub App installation lifecycle events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallationPayload'
+      responses:
+        '200':
+          description: Installation event processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallationResponse'
+
+  /webhooks/health:
+    get:
+      tags: [webhooks]
+      summary: Health check
+      description: Simple health check endpoint
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for API authentication
+
+  schemas:
+    # Pipeline Schemas
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique pipeline identifier
+          example: "pipeline_1699123456_abc123def"
+        name:
+          type: string
+          description: Pipeline name
+          example: "my-app-main"
+        repository:
+          type: string
+          description: Repository name
+          example: "my-org/my-app"
+        branch:
+          type: string
+          description: Target branch
+          example: "main"
+        projectType:
+          type: string
+          description: Project type
+          enum: [nodejs, python, go, docker, generic]
+          example: "nodejs"
+        status:
+          type: string
+          description: Pipeline status
+          enum: [draft, active, inactive]
+          example: "active"
+        config:
+          $ref: '#/components/schemas/PipelineConfig'
+        createdAt:
+          type: string
+          format: date-time
+          description: Pipeline creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Pipeline last update timestamp
+
+    GeneratePipelineRequest:
+      type: object
+      required:
+        - repository
+        - branch
+        - projectType
+      properties:
+        repository:
+          type: string
+          description: Repository name
+          example: "my-org/my-app"
+        branch:
+          type: string
+          description: Target branch
+          example: "main"
+        projectType:
+          type: string
+          description: Project type
+          enum: [nodejs, python, go, docker, generic]
+          example: "nodejs"
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStep'
+          description: Custom pipeline steps
+        environment:
+          type: string
+          description: Deployment environment
+          example: "staging"
+        installationId:
+          type: integer
+          description: GitHub installation ID
+          example: 123456
+
+    PipelineStep:
+      type: object
+      required:
+        - name
+        - command
+      properties:
+        name:
+          type: string
+          description: Step name
+          example: "build"
+        command:
+          type: string
+          description: Command to execute
+          example: "npm run build"
+        image:
+          type: string
+          description: Docker image to use
+          example: "node:18"
+        env:
+          type: array
+          items:
+            type: string
+          description: Environment variables
+          example: ["NODE_ENV=production", "PORT=3000"]
+
+    PipelineConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Workflow name
+        on:
+          type: object
+          description: Trigger conditions
+        jobs:
+          type: object
+          description: Workflow jobs configuration
+
+    PipelineExecution:
+      type: object
+      properties:
+        executionId:
+          type: string
+          description: Execution identifier
+          example: "exec_1699123456_xyz789"
+        pipelineId:
+          type: string
+          description: Pipeline identifier
+          example: "pipeline_1699123456_abc123def"
+        status:
+          type: string
+          enum: [pending, running, success, failure, cancelled]
+          example: "running"
+        startedAt:
+          type: string
+          format: date-time
+          description: Execution start time
+
+    PipelineStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Execution identifier
+        status:
+          type: string
+          enum: [pending, running, success, failure, cancelled]
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionStep'
+        logs:
+          type: array
+          items:
+            type: string
+          description: Execution logs
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+
+    ExecutionStep:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Step name
+        status:
+          type: string
+          enum: [pending, running, success, failure, skipped]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        output:
+          type: string
+          description: Step output
+
+    # GitHub Schemas
+    GitHubApp:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: App ID
+          example: 123456
+        name:
+          type: string
+          description: App name
+          example: "CI-CD Agent"
+        slug:
+          type: string
+          description: App slug
+          example: "ci-cd-agent"
+        owner:
+          $ref: '#/components/schemas/GitHubUser'
+
+    GitHubInstallation:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Installation ID
+          example: 789012
+        account:
+          $ref: '#/components/schemas/GitHubUser'
+        repositories_url:
+          type: string
+          description: Repositories API URL
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GitHubRepository:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Repository ID
+          example: 345678
+        name:
+          type: string
+          description: Repository name
+          example: "my-app"
+        full_name:
+          type: string
+          description: Full repository name
+          example: "my-org/my-app"
+        private:
+          type: boolean
+          description: Whether repository is private
+        default_branch:
+          type: string
+          description: Default branch
+          example: "main"
+
+    GitHubUser:
+      type: object
+      properties:
+        login:
+          type: string
+          description: Username
+          example: "my-org"
+        id:
+          type: integer
+          description: User ID
+          example: 12345
+        type:
+          type: string
+          enum: [User, Organization]
+          example: "Organization"
+
+    DispatchEvent:
+      type: object
+      required:
+        - event_type
+      properties:
+        event_type:
+          type: string
+          description: Event type identifier
+          example: "deploy-staging"
+        client_payload:
+          type: object
+          description: Additional event data
+          example:
+            environment: "staging"
+            version: "1.2.3"
+
+    DispatchResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Event dispatched successfully"
+
+    InstallationToken:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Truncated token (for security)
+          example: "ghs_1234..."
+        generated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    # Webhook Schemas
+    WebhookPayload:
+      type: object
+      properties:
+        action:
+          type: string
+          description: Event action
+          example: "opened"
+        repository:
+          $ref: '#/components/schemas/GitHubRepository'
+        installation:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 123456
+        sender:
+          $ref: '#/components/schemas/GitHubUser'
+
+    WebhookResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "processed"
+        message:
+          type: string
+          example: "Webhook processed successfully"
+
+    InstallationPayload:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [created, deleted, suspend, unsuspend]
+          example: "created"
+        installation:
+          $ref: '#/components/schemas/GitHubInstallation'
+
+    InstallationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "installation_created"
+        installationId:
+          type: integer
+          example: 123456
+
+    # Common Schemas
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "ValidationError"
+        message:
+          type: string
+          description: Error message
+          example: "Invalid request data"
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+        timestamp:
+          type: string
+          format: date-time
+
+tags:
+  - name: pipelines
+    description: Pipeline generation and management
+  - name: github
+    description: GitHub App integration and repository management
+  - name: webhooks
+    description: Webhook event handling and health checks
