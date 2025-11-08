@@ -70,25 +70,21 @@ services:
       timeout: 10s
       retries: 3
 
-  # ArgoCD for GitOps deployment (optional local development)
-  argocd-server:
-    image: quay.io/argoproj/argocd:v2.8.4
-    container_name: ci-cd-argocd
+  # Mock ArgoCD service for local development (without Kubernetes)
+  argocd-mock:
+    image: nginx:alpine
+    container_name: ci-cd-argocd-mock
     ports:
-      - "8080:8080"
-      - "8443:8443"
-    environment:
-      - ARGOCD_SERVER_INSECURE=true
+      - "8080:80"
     volumes:
-      - argocd-data:/home/argocd
+      - ./argocd/mock-ui:/usr/share/nginx/html:ro
+      - ./argocd/mock-nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - ci-cd-network
     restart: unless-stopped
-    command: 
-      - argocd-server
-      - --insecure
-      - --staticassets
-      - /shared/app
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
 
   # Nginx reverse proxy for local development
   nginx:
