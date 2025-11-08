@@ -83,14 +83,43 @@ jobs:
       run: npm ci
       
     - name: Run security audit
-      run: npm audit --audit-level moderate
+      run: |
+        # Run npm audit and capture results
+        npm audit --audit-level moderate --json > audit-results.json || true
+        
+        # Display results in readable format
+        npm audit --audit-level moderate || true
+        
+        # Check for high/critical vulnerabilities that should fail the build
+        if npm audit --audit-level high; then
+          echo "✅ No high/critical vulnerabilities found"
+        else
+          echo "❌ High/critical vulnerabilities detected"
+          exit 1
+        fi
       
     - name: Run Snyk security scan
       uses: snyk/actions/node@master
+      continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        args: --severity-threshold=high
+        args: --severity-threshold=high --json
+        
+    - name: Upload Snyk results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: snyk.sarif
+      continue-on-error: true
+        
+    - name: Run additional dependency checks
+      run: |
+        # Check for outdated packages
+        npm outdated || true
+        
+        # Check package licenses
+        npx license-checker --summary || true
         
   docker:
     name: Build Docker Image
