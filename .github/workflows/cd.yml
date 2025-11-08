@@ -168,12 +168,11 @@ jobs:
           fi
         fi
         
-    - name: Deploy ArgoCD Application
+    - name: Prepare ArgoCD Application
       run: |
-        # Apply ArgoCD application manifest to local cluster
-        kubectl apply -f gitops/argocd-application.yaml
-        
-        echo "✅ ArgoCD Application deployed"
+        echo "📋 ArgoCD Application manifest ready for deployment"
+        echo "🏠 For local deployment, run:"
+        echo "   kubectl apply -f gitops/argocd-application.yaml"
         echo "🔄 ArgoCD will automatically sync from GitOps repository"
         
     - name: Trigger ArgoCD sync (if configured)
@@ -201,16 +200,25 @@ jobs:
           echo "🔄 ArgoCD will auto-sync from GitOps repository changes"
         fi
         
-    - name: Setup local ArgoCD access
+    - name: Local deployment instructions
       run: |
-        echo "🎯 ArgoCD Access Information:"
-        echo "📍 Local ArgoCD UI: https://localhost:8080"
-        echo "👤 Username: admin"  
-        echo "🔑 Password: Run 'kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d'"
+        echo "🎯 Local Deployment Instructions:"
         echo ""
-        echo "🚀 Application Status:"
-        echo "kubectl get applications -n argocd"
-        echo "kubectl describe application ci-cd-agent -n argocd"
+        echo "📋 1. Apply GitOps changes locally:"
+        echo "   ./manual-gitops-sync.sh --update-image"
+        echo ""
+        echo "� 2. Access ArgoCD UI:"
+        echo "   kubectl port-forward svc/argocd-server -n argocd 8080:443"
+        echo "   URL: https://localhost:8080"
+        echo "   Username: admin"
+        echo "   Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+        echo ""
+        echo "� 3. Check application status:"
+        echo "   kubectl get applications -n argocd"
+        echo "   kubectl get all -n ci-cd-agent"
+        echo ""
+        echo "💡 Note: GitHub Actions runs in the cloud and cannot access your local Kind cluster."
+        echo "    Use the manual-gitops-sync.sh script to deploy changes locally."
         
   local-deployment:
     name: Deploy to Local/Development
