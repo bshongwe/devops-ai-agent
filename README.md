@@ -1,4 +1,4 @@
-# CI-CD Agent
+# DevOps Ai CI-CD Agent
 
 A comprehensive CI-CD orchestration agent built with NestJS, featuring GitHub App integration, automated pipeline generation, and ArgoCD GitOps deployment management.
 
