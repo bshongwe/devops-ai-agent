@@ -13,7 +13,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/bshongwe/devops-ai-agent.git
-    targetRevision: main
+    targetRevision: HEAD
     path: gitops/applications/ci-cd-agent
   destination:
     server: https://kubernetes.default.svc

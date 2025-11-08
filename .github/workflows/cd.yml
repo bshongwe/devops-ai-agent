@@ -112,7 +112,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITOPS_TOKEN || secrets.GITHUB_TOKEN }}
         fetch-depth: 0
         
     - name: Update image tags in GitOps
@@ -151,8 +151,21 @@ jobs:
           - Workflow: ${{ github.workflow }}
           - Run: ${{ github.run_id }}"
           
-          git push
-          echo "✅ GitOps repository updated successfully"
+          # Try to push, handle permission errors gracefully
+          if git push; then
+            echo "✅ GitOps repository updated successfully"
+          else
+            echo "⚠️  Failed to push GitOps changes - this is expected without GITOPS_TOKEN"
+            echo "💡 To enable automatic GitOps updates:"
+            echo "   1. Create a Personal Access Token with 'repo' scope"
+            echo "   2. Add it as GITOPS_TOKEN secret in repository settings"
+            echo "   3. Re-run the workflow"
+            echo ""
+            echo "🔄 For now, you can manually apply the GitOps changes:"
+            echo "   git pull origin main"
+            echo "   kubectl apply -k gitops/applications/ci-cd-agent"
+            exit 0  # Don't fail the workflow
+          fi
         fi
         
     - name: Deploy ArgoCD Application
