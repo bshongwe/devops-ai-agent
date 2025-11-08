@@ -1,0 +1,32 @@
+# Snyk configuration file
+# https://docs.snyk.io/snyk-cli/commands/config
+
+# Language settings
+language-settings:
+  node:
+    # Only scan production dependencies (not devDependencies)
+    dev: false
+    
+# Vulnerability patches
+patches: {}
+
+# Ignore specific vulnerabilities (use with caution)
+ignore:
+  # Example: Ignore low severity issues in dev dependencies
+  # 'npm:tmp:20230801':
+  #   - '*':
+  #       reason: Low severity, dev dependency only
+  #       expires: '2024-01-01T00:00:00.000Z'
+
+# Exclude paths from scanning
+exclude:
+  global:
+    - node_modules/**
+    - dist/**
+    - build/**
+    - '*.test.js'
+    - '*.spec.ts'
+    - test/**
+    - tests/**
+    - coverage/**
+    - '*.d.ts'
