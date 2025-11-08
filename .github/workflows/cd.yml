@@ -104,36 +104,130 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         
   argocd-sync:
-    name: Sync ArgoCD Application
+    name: Update GitOps and Sync ArgoCD
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Checkout GitOps repo
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        repository: ${{ github.repository }}-gitops
-        token: ${{ secrets.GITOPS_TOKEN }}
-        path: gitops
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
         
-    - name: Update image tag
+    - name: Update image tags in GitOps
       run: |
-        cd gitops
-        sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" \
-          applications/ci-cd-agent/kustomization.yaml
+        # Update base application image tag
+        sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" \
+          gitops/applications/ci-cd-agent/kustomization.yaml
           
-    - name: Commit and push changes
+        # Update staging environment
+        sed -i "s|newTag: .*|newTag: staging-${{ github.sha }}|" \
+          gitops/environments/staging/kustomization.yaml
+          
+        # Update production environment (only on main branch with tag)
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" \
+            gitops/environments/production/kustomization.yaml
+        fi
+          
+    - name: Commit and push GitOps changes
       run: |
-        cd gitops
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git add .
-        git commit -m "Update ci-cd-agent image to ${{ github.sha }}"
-        git push
+        git config user.name "GitHub Actions Bot"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
         
-    - name: Trigger ArgoCD sync
+        # Add all changes
+        git add gitops/
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🚀 GitOps: Update ci-cd-agent image to ${{ github.sha }}
+          
+          - Updated base image tag: ${{ github.sha }}
+          - Updated staging tag: staging-${{ github.sha }}
+          - Environment: ${{ github.ref_name }}
+          - Workflow: ${{ github.workflow }}
+          - Run: ${{ github.run_id }}"
+          
+          git push
+          echo "✅ GitOps repository updated successfully"
+        fi
+        
+    - name: Deploy ArgoCD Application
       run: |
-        curl -X POST "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/ci-cd-agent/sync" \
-          -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          -d '{"prune": true, "dryRun": false}'
+        # Apply ArgoCD application manifest to local cluster
+        kubectl apply -f gitops/argocd-application.yaml
+        
+        echo "✅ ArgoCD Application deployed"
+        echo "🔄 ArgoCD will automatically sync from GitOps repository"
+        
+    - name: Trigger ArgoCD sync (if configured)
+      continue-on-error: true
+      run: |
+        # Try to sync with ArgoCD API if credentials are available
+        if [ -n "${{ secrets.ARGOCD_SERVER }}" ] && [ -n "${{ secrets.ARGOCD_TOKEN }}" ]; then
+          echo "🔄 Triggering ArgoCD sync via API..."
+          
+          curl -k -X POST "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/ci-cd-agent/sync" \
+            -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "prune": true,
+              "dryRun": false,
+              "strategy": {
+                "hook": {
+                  "force": true
+                }
+              }
+            }' || echo "⚠️  ArgoCD API sync failed, but GitOps commit will trigger auto-sync"
+            
+        else
+          echo "💡 ArgoCD API credentials not configured"
+          echo "🔄 ArgoCD will auto-sync from GitOps repository changes"
+        fi
+        
+    - name: Setup local ArgoCD access
+      run: |
+        echo "🎯 ArgoCD Access Information:"
+        echo "📍 Local ArgoCD UI: https://localhost:8080"
+        echo "👤 Username: admin"  
+        echo "🔑 Password: Run 'kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d'"
+        echo ""
+        echo "🚀 Application Status:"
+        echo "kubectl get applications -n argocd"
+        echo "kubectl describe application ci-cd-agent -n argocd"
+        
+  local-deployment:
+    name: Deploy to Local/Development
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image
+        path: /tmp
+        
+    - name: Load Docker image
+      run: |
+        docker load < /tmp/ci-cd-agent.tar
+        echo "✅ Docker image loaded successfully"
+        docker images ci-cd-agent:latest
+        
+    - name: Deployment summary
+      run: |
+        echo "🚀 CI/CD Agent deployment summary:"
+        echo "📦 Docker image: ci-cd-agent:latest"
+        echo "🔧 Ready for local deployment with:"
+        echo "   docker run -p 3000:3000 ci-cd-agent:latest"
+        echo ""
+        echo "🎯 For ArgoCD deployment:"
+        echo "   1. Configure GITOPS_TOKEN secret for GitOps repository access"
+        echo "   2. Set ENABLE_GITOPS=true in repository variables"
+        echo "   3. Configure ARGOCD_SERVER and ARGOCD_TOKEN secrets"
