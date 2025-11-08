@@ -70,21 +70,9 @@ services:
       timeout: 10s
       retries: 3
 
-  # Mock ArgoCD service for local development (without Kubernetes)
-  argocd-mock:
-    image: nginx:alpine
-    container_name: ci-cd-argocd-mock
-    ports:
-      - "8080:80"
-    volumes:
-      - ./argocd/mock-ui:/usr/share/nginx/html:ro
-      - ./argocd/mock-nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - ci-cd-network
-    restart: unless-stopped
-    environment:
-      - NGINX_HOST=localhost
-      - NGINX_PORT=80
+  # ArgoCD is now running in Kubernetes cluster (Kind)
+  # Access via: https://localhost:8080 (admin/LIYGSScjppIVxXd6)
+  # Port forwarding: kubectl port-forward svc/argocd-server -n argocd 8080:443
 
   # Nginx reverse proxy for local development
   nginx:

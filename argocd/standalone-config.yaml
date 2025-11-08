@@ -1,76 +1,54 @@
-# ArgoCD Server Configuration for Standalone Mode
-# This configuration allows ArgoCD to run without connecting to a Kubernetes cluster
-
-# URL configuration for local development
-url: http://localhost:8080/argocd
-
-# Application configuration
-application.instanceLabelKey: argocd.argoproj.io/instance
-
-# Server configuration
-server:
-  insecure: true
-  rootpath: /argocd
-  grpc:
-    web: true
-
-# UI configuration
-ui:
-  cssUrl: ""
-
-# Disable features that require Kubernetes cluster
-clusters: |
-  - name: in-cluster
-    server: https://kubernetes.default.svc
-    config:
-      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-      tlsClientConfig:
-        insecure: false
-        caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-
-# Repository configuration for local development
-repositories: |
-  - type: git
-    url: https://github.com/argoproj/argocd-example-apps
-
-# RBAC configuration (permissive for local development)
-policy.default: role:admin
-policy.csv: |
-  p, role:admin, applications, *, */*, allow
-  p, role:admin, clusters, *, *, allow
-  p, role:admin, repositories, *, *, allow
-  g, argocd-admins, role:admin
-
-# OIDC configuration (disabled for local development)
-oidc.config: ""
-
-# Help configuration
-help.chatUrl: ""
-help.chatText: "Chat now!"
-
-# Accounts configuration (local admin account)
-accounts.admin: login
-accounts.admin.enabled: "true"
-
-# Password for admin (change in production)
-# Default password: admin
-accounts.admin.password: $2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU2oPAis4zzO
-
-# Custom CSS and JS (optional)
-ui.cssurl: ""
-ui.bannercontent: ""
-ui.bannerpermanent: "false"
-ui.bannerposition: "top"
-
-# Logging configuration
-server.log.level: info
-server.log.format: text
-
-# Metrics configuration
-server.metrics: true
-controller.metrics: true
-reposerver.metrics: true
-
-# Git configuration
-timeout.reconciliation: 180s
-timeout.hard.reconciliation: 0s
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # Server configuration
+  url: http://localhost:8080
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  
+  # Disable authentication for local development
+  server.insecure: "true"
+  server.disable.auth: "true"
+  server.enable.grpc.web: "true"
+  
+  # Repository credentials and configurations
+  repositories: |
+    - url: https://github.com/argoproj/argocd-example-apps
+      type: git
+    - url: https://helm.github.io/examples
+      type: helm
+      name: helm-example
+  
+  # Resource customizations to handle CRDs and other resources
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |
+        hs = {}
+        hs.status = "Healthy"
+        hs.message = "Application is healthy"
+        return hs
+  
+  # RBAC configuration
+  policy.default: role:readonly
+  policy.csv: |
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow  
+    p, role:admin, repositories, *, *, allow
+    g, argocd-admins, role:admin
+  
+  # Accounts configuration
+  accounts.admin: login
+  accounts.admin.enabled: "true"
+  
+  # Help and UI configuration
+  help.chatUrl: ""
+  help.chatText: "Chat now!"
+  
+  # Logging
+  server.log.level: info
+  
+  # Timeout configurations
+  timeout.reconciliation: 180s
+  timeout.hard.reconciliation: 0s

@@ -1,0 +1,27 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: argocd-local
+networking:
+  # Expose ports for ArgoCD
+  apiServerPort: 6443
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  # ArgoCD Server (using different ports to avoid conflict)
+  - containerPort: 30080
+    hostPort: 8081
+    protocol: TCP
+  # ArgoCD Server HTTPS
+  - containerPort: 30443
+    hostPort: 8444
+    protocol: TCP
+  # Additional port for API
+  - containerPort: 30090
+    hostPort: 8091
+    protocol: TCP
