@@ -8,6 +8,12 @@ on:
 
 env:
   NODE_VERSION: '18'
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: read
   
 jobs:
   test:
@@ -144,25 +150,44 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
+        username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ghcr.io/${{ github.repository }}
+        images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
           
-    - name: Build and push Docker image
+    - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
+        push: false
+        tags: ci-cd-agent:latest
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        
+    - name: Save Docker image
+      run: |
+        docker save ci-cd-agent:latest > /tmp/ci-cd-agent.tar
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: /tmp/ci-cd-agent.tar
+        retention-days: 7
+        
+    - name: Docker build summary
+      if: success()
+      run: |
+        echo "✅ Docker image built successfully: ci-cd-agent:latest"
+        echo "📦 Image saved as artifact for deployment"
+        echo "⚠️  Registry push disabled - see DOCKER-REGISTRY-SETUP.md for configuration"
+        docker images ci-cd-agent:latest
