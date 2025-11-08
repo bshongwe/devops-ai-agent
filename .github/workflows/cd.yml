@@ -1,0 +1,139 @@
+name: CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: |
+      github.event.workflow_run.conclusion == 'success' || 
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging-ci-cd-agent.example.com
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+        
+    - name: Configure kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
+        
+    - name: Deploy to staging
+      run: |
+        kubectl set image deployment/ci-cd-agent \
+          ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          -n staging
+        kubectl rollout status deployment/ci-cd-agent -n staging
+        
+    - name: Run health checks
+      run: |
+        kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n staging --timeout=300s
+        curl -f https://staging-ci-cd-agent.example.com/webhooks/health
+        
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://ci-cd-agent.example.com
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+        
+    - name: Configure kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+        
+    - name: Deploy to production
+      run: |
+        kubectl set image deployment/ci-cd-agent \
+          ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          -n production
+        kubectl rollout status deployment/ci-cd-agent -n production
+        
+    - name: Run health checks
+      run: |
+        kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n production --timeout=300s
+        curl -f https://ci-cd-agent.example.com/webhooks/health
+        
+    - name: Notify deployment
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#deployments'
+        text: 'CI-CD Agent successfully deployed to production! 🚀'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+  argocd-sync:
+    name: Sync ArgoCD Application
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout GitOps repo
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.repository }}-gitops
+        token: ${{ secrets.GITOPS_TOKEN }}
+        path: gitops
+        
+    - name: Update image tag
+      run: |
+        cd gitops
+        sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" \
+          applications/ci-cd-agent/kustomization.yaml
+          
+    - name: Commit and push changes
+      run: |
+        cd gitops
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add .
+        git commit -m "Update ci-cd-agent image to ${{ github.sha }}"
+        git push
+        
+    - name: Trigger ArgoCD sync
+      run: |
+        curl -X POST "${{ secrets.ARGOCD_SERVER }}/api/v1/applications/ci-cd-agent/sync" \
+          -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{"prune": true, "dryRun": false}'
