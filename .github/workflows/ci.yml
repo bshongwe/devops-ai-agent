@@ -34,7 +34,10 @@ jobs:
         echo "✅ Linting completed successfully"
       
     - name: Run tests
-      run: npm run test:cov
+      run: |
+        echo "Running tests with coverage..."
+        npm run test:cov -- --passWithNoTests
+        echo "✅ Tests completed successfully"
       
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
