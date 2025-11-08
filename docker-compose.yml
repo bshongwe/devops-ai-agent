@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # CI-CD Agent Application
+  ci-cd-agent:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: ci-cd-agent
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - CORS_ORIGIN=http://localhost:3001
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/webhooks/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: ci-cd-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL for persistent data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: ci-cd-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ci_cd_agent
+      - POSTGRES_USER=ci_cd_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ci_cd_user -d ci_cd_agent"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ArgoCD for GitOps deployment (optional local development)
+  argocd-server:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: ci-cd-argocd
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    command: 
+      - argocd-server
+      - --insecure
+      - --staticassets
+      - /shared/app
+
+  # Nginx reverse proxy for local development
+  nginx:
+    image: nginx:alpine
+    container_name: ci-cd-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - ci-cd-network
+    depends_on:
+      - ci-cd-agent
+    restart: unless-stopped
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ci-cd-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ci-cd-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+
+networks:
+  ci-cd-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+  postgres-data:
+  argocd-data:
+  prometheus-data:
+  grafana-data:
