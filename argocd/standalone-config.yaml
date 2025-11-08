@@ -1,0 +1,76 @@
+# ArgoCD Server Configuration for Standalone Mode
+# This configuration allows ArgoCD to run without connecting to a Kubernetes cluster
+
+# URL configuration for local development
+url: http://localhost:8080/argocd
+
+# Application configuration
+application.instanceLabelKey: argocd.argoproj.io/instance
+
+# Server configuration
+server:
+  insecure: true
+  rootpath: /argocd
+  grpc:
+    web: true
+
+# UI configuration
+ui:
+  cssUrl: ""
+
+# Disable features that require Kubernetes cluster
+clusters: |
+  - name: in-cluster
+    server: https://kubernetes.default.svc
+    config:
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsClientConfig:
+        insecure: false
+        caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+# Repository configuration for local development
+repositories: |
+  - type: git
+    url: https://github.com/argoproj/argocd-example-apps
+
+# RBAC configuration (permissive for local development)
+policy.default: role:admin
+policy.csv: |
+  p, role:admin, applications, *, */*, allow
+  p, role:admin, clusters, *, *, allow
+  p, role:admin, repositories, *, *, allow
+  g, argocd-admins, role:admin
+
+# OIDC configuration (disabled for local development)
+oidc.config: ""
+
+# Help configuration
+help.chatUrl: ""
+help.chatText: "Chat now!"
+
+# Accounts configuration (local admin account)
+accounts.admin: login
+accounts.admin.enabled: "true"
+
+# Password for admin (change in production)
+# Default password: admin
+accounts.admin.password: $2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU2oPAis4zzO
+
+# Custom CSS and JS (optional)
+ui.cssurl: ""
+ui.bannercontent: ""
+ui.bannerpermanent: "false"
+ui.bannerposition: "top"
+
+# Logging configuration
+server.log.level: info
+server.log.format: text
+
+# Metrics configuration
+server.metrics: true
+controller.metrics: true
+reposerver.metrics: true
+
+# Git configuration
+timeout.reconciliation: 180s
+timeout.hard.reconciliation: 0s
