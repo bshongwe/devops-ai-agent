@@ -106,7 +106,7 @@ export class GitHubAppService {
       const octokit = await this.githubAuthService.getInstallationOctokit(installationId);
       const [owner, repo] = repository.split('/');
       
-      const { data } = await octokit.rest.repos.createDispatchEvent({
+      await octokit.rest.repos.createDispatchEvent({
         owner,
         repo,
         event_type: eventType,
@@ -156,7 +156,7 @@ export class GitHubAppService {
   }
 
   private async handlePullRequestEvent(payload: any): Promise<any> {
-    const { action, pull_request, repository, installation } = payload;
+    const { action, pull_request, repository } = payload;
     
     this.logger.log(`Pull request ${action} in ${repository.full_name}: #${pull_request.number}`);
 

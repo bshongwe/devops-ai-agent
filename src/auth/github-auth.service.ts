@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { App } from '@octokit/app';
 import { Octokit } from '@octokit/rest';
 import * as jwt from 'jsonwebtoken';
-import { createHmac, timingSafeEqual } from 'node:crypto';
 
 @Injectable()
 export class GitHubAuthService {
