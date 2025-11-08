@@ -12,15 +12,33 @@ export class GitHubAuthService {
   constructor(private readonly configService: ConfigService) {
     const appId = this.configService.get<string>('GITHUB_APP_ID');
     const privateKey = this.configService.get<string>('GITHUB_PRIVATE_KEY');
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
     
-    if (!appId || !privateKey) {
-      throw new Error('GitHub App ID and Private Key are required');
+    // In development mode, allow missing credentials with warnings
+    if (!appId || !privateKey || appId === 'your_github_app_id_here') {
+      if (nodeEnv === 'development') {
+        console.warn('⚠️  GitHub App credentials not configured - using mock auth for development');
+        // Create a minimal mock app for development
+        this.app = null; // We'll handle null checks in methods
+        return;
+      } else {
+        throw new Error('GitHub App ID and Private Key are required in production');
+      }
     }
 
-    this.app = new App({
-      appId: Number.parseInt(appId),
-      privateKey: privateKey.replace(/\\n/g, '\n'),
-    });
+    try {
+      this.app = new App({
+        appId: Number.parseInt(appId),
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      });
+    } catch (error) {
+      if (nodeEnv === 'development') {
+        console.warn('⚠️  Invalid GitHub App credentials - using mock auth for development');
+        this.app = null;
+      } else {
+        throw error;
+      }
+    }
   }
 
   /**
@@ -29,13 +47,19 @@ export class GitHubAuthService {
   generateJWT(): string {
     const appId = this.configService.get<string>('GITHUB_APP_ID');
     const privateKey = this.configService.get<string>('GITHUB_PRIVATE_KEY');
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    
+    // Return mock JWT in development
+    if (!this.app && nodeEnv === 'development') {
+      return 'dev_mock_jwt_token_' + Date.now();
+    }
     
     const now = Math.floor(Date.now() / 1000);
     
     const payload = {
       iat: now - 60, // Issued 60 seconds in the past
       exp: now + (10 * 60), // Expires in 10 minutes
-      iss: parseInt(appId),
+      iss: Number.parseInt(appId),
     };
 
     return jwt.sign(payload, privateKey.replace(/\\n/g, '\n'), {
@@ -47,8 +71,14 @@ export class GitHubAuthService {
    * Get installation access token
    */
   async getInstallationToken(installationId: number): Promise<string> {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    
+    // Return mock token in development
+    if (!this.app && nodeEnv === 'development') {
+      return `dev_mock_installation_token_${installationId}_${Date.now()}`;
+    }
+    
     try {
-      // Use manual token generation for now
       const octokit = new Octokit({
         auth: this.generateJWT(),
       });
@@ -67,6 +97,24 @@ export class GitHubAuthService {
    * Get authenticated Octokit instance for an installation
    */
   async getInstallationOctokit(installationId: number): Promise<any> {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    
+    // Return mock octokit in development
+    if (!this.app && nodeEnv === 'development') {
+      return {
+        rest: {
+          repos: {
+            createDispatchEvent: () => Promise.resolve({ data: { status: 'mocked' } }),
+          },
+          apps: {
+            listReposAccessibleToInstallation: () => Promise.resolve({ 
+              data: { repositories: [] } 
+            }),
+          },
+        },
+      };
+    }
+    
     const token = await this.getInstallationToken(installationId);
     return new Octokit({ auth: token });
   }
@@ -95,6 +143,22 @@ export class GitHubAuthService {
    * Get app information
    */
   async getAppInfo() {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    
+    // Return mock app info in development
+    if (!this.app && nodeEnv === 'development') {
+      return {
+        id: 123456,
+        name: 'CI-CD Agent (Development)',
+        slug: 'ci-cd-agent-dev',
+        owner: {
+          login: 'development-user',
+          id: 12345,
+          type: 'User',
+        },
+      };
+    }
+    
     const octokit = new Octokit({ auth: this.generateJWT() });
     const { data } = await (octokit as any).rest.apps.getAuthenticated();
     return data;
