@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common'
 import { HttpService } from '@nestjs/axios'
 import { ConfigService } from '@nestjs/config'
 import { firstValueFrom } from 'rxjs'
+import { createConnection } from 'node:net'
 
 export interface HealthStatus {
   service: string
@@ -76,11 +77,11 @@ export class DashboardService {
 
   async getSystemHealth(): Promise<HealthStatus[]> {
     const services = [
-      { name: 'CI-CD Agent', url: 'http://localhost:3000/health', port: 3000 },
-      { name: 'PostgreSQL', url: 'http://ci-cd-postgres:5432', port: 5432 },
-      { name: 'Redis', url: 'http://ci-cd-redis:6379', port: 6379 },
-      { name: 'Prometheus', url: 'http://ci-cd-prometheus:9090/-/healthy', port: 9090 },
-      { name: 'Grafana', url: 'http://ci-cd-grafana:3000/api/health', port: 3000 }
+      { name: 'CI-CD Agent', url: 'http://localhost:3000/webhooks/health', type: 'http' },
+      { name: 'PostgreSQL', host: 'localhost', port: 5432, type: 'tcp' },
+      { name: 'Redis', host: 'localhost', port: 6379, type: 'tcp' },
+      { name: 'Prometheus', url: 'http://localhost:9090/-/healthy', type: 'http' },
+      { name: 'Grafana', url: 'http://localhost:3001/api/health', type: 'http' }
     ]
 
     const healthChecks = await Promise.allSettled(
@@ -111,7 +112,7 @@ export class DashboardService {
       const params: any = { query }
       if (range) {
         const end = Math.floor(Date.now() / 1000)
-        const start = end - parseInt(range) * 60 // range in minutes
+        const start = end - Number.parseInt(range) * 60 // range in minutes
         params.start = start
         params.end = end
         params.step = '60s'
@@ -272,11 +273,17 @@ export class DashboardService {
   }
 
   private async checkServiceHealth(service: any): Promise<HealthStatus> {
+    const startTime = Date.now()
+    
     try {
-      const startTime = Date.now()
-      await firstValueFrom(
-        this.httpService.get(service.url, { timeout: 3000 })
-      )
+      if (service.type === 'http') {
+        await firstValueFrom(
+          this.httpService.get(service.url, { timeout: 3000 })
+        )
+      } else if (service.type === 'tcp') {
+        await this.checkTcpConnection(service.host, service.port)
+      }
+      
       const responseTime = Date.now() - startTime
 
       return {
@@ -292,19 +299,40 @@ export class DashboardService {
         status: 'error',
         uptime: 'N/A',
         lastCheck: new Date().toLocaleTimeString(),
-        message: error.code || 'Connection failed'
+        message: error.code || error.message || 'Connection failed'
       }
     }
+  }
+
+  private async checkTcpConnection(host: string, port: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const socket = createConnection({ host, port, timeout: 3000 })
+      
+      socket.on('connect', () => {
+        socket.end()
+        resolve()
+      })
+      
+      socket.on('error', (error) => {
+        reject(error)
+      })
+      
+      socket.on('timeout', () => {
+        socket.destroy()
+        reject(new Error('Connection timeout'))
+      })
+    })
   }
 
   private extractMetricValue(prometheusResponse: any): number {
     try {
       if (prometheusResponse?.data?.result?.length > 0) {
         const result = prometheusResponse.data.result[0]
-        return parseFloat(result.value[1]) || 0
+        return Number.parseFloat(result.value[1]) || 0
       }
       return 0
     } catch (error) {
+      console.error('Error extracting metric value:', error)
       return 0
     }
   }
