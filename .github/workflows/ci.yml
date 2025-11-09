@@ -119,6 +119,40 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
         args: --sarif-file-output=snyk.sarif --severity-threshold=high
+    
+    - name: Verify and validate SARIF file
+      run: |
+        echo "Checking for SARIF file..."
+        if [ -f "snyk.sarif" ]; then
+          echo "✅ SARIF file exists"
+          echo "File size: $(du -h snyk.sarif | cut -f1)"
+          
+          # Validate JSON format
+          if command -v jq &> /dev/null; then
+            if jq empty snyk.sarif 2>/dev/null; then
+              echo "✅ Valid JSON format"
+              echo "Number of runs: $(jq '.runs | length' snyk.sarif)"
+              echo "SARIF version: $(jq -r '.version' snyk.sarif)"
+            else
+              echo "⚠️  Invalid JSON format"
+            fi
+          else
+            echo "ℹ️  jq not available, skipping JSON validation"
+          fi
+        else
+          echo "⚠️  SARIF file not found"
+          echo "Current directory contents:"
+          ls -la
+        fi
+    
+    - name: Upload SARIF file as artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: snyk-sarif-results
+        path: snyk.sarif
+        if-no-files-found: warn
+        retention-days: 30
         
     - name: Upload Snyk results to GitHub Code Scanning
       uses: github/codeql-action/upload-sarif@v3
