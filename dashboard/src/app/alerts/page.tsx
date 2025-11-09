@@ -5,7 +5,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 
 interface Alert {
   id: number
-  level: 'info' | 'warning' | 'error' | 'success'
+  level: 'error' | 'warning' | 'info' | 'success'
   title: string
   message: string
   time: string
@@ -13,25 +13,50 @@ interface Alert {
 }
 
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [selectedLevel, setSelectedLevel] = useState('all')
+  const [selectedStatus, setSelectedStatus] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
+  const [alerts, setAlerts] = useState<Alert[]>([])
 
   useEffect(() => {
-    const fetchAlerts = async () => {
-      try {
-        const response = await fetch('/api/agent/dashboard/alerts')
-        const data = await response.json()
-        setAlerts(data)
-        setIsLoading(false)
-      } catch (error) {
-        console.error('Failed to fetch alerts:', error)
-        setIsLoading(false)
+    // Simulate loading and set mock data
+    const mockAlerts: Alert[] = [
+      {
+        id: 1,
+        level: 'error',
+        title: 'High Memory Usage Detected',
+        message: 'Memory usage has exceeded 85% threshold on production server',
+        time: new Date().toISOString(),
+        source: 'Prometheus'
+      },
+      {
+        id: 2,
+        level: 'warning',
+        title: 'Slow Response Time',
+        message: 'API response time is averaging 2.5 seconds over the last 5 minutes',
+        time: new Date(Date.now() - 300000).toISOString(),
+        source: 'Grafana'
+      },
+      {
+        id: 3,
+        level: 'info',
+        title: 'Deployment Successful',
+        message: 'Application version 1.2.3 has been successfully deployed to staging',
+        time: new Date(Date.now() - 600000).toISOString(),
+        source: 'ArgoCD'
+      },
+      {
+        id: 4,
+        level: 'success',
+        title: 'System Health Check Passed',
+        message: 'All critical services are running normally',
+        time: new Date(Date.now() - 900000).toISOString(),
+        source: 'Health Monitor'
       }
-    }
-
-    fetchAlerts()
-    const interval = setInterval(fetchAlerts, 10000) // Update every 10 seconds
-    return () => clearInterval(interval)
+    ]
+    
+    setAlerts(mockAlerts)
+    setIsLoading(false)
   }, [])
 
   const getAlertIcon = (level: string) => {
