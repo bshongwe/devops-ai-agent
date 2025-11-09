@@ -15,7 +15,7 @@ nodes:
   extraPortMappings:
   # ArgoCD Server (using different ports to avoid conflict)
   - containerPort: 30080
-    hostPort: 8081
+    hostPort: 8080
     protocol: TCP
   # ArgoCD Server HTTPS
   - containerPort: 30443
@@ -23,5 +23,5 @@ nodes:
     protocol: TCP
   # Additional port for API
   - containerPort: 30090
-    hostPort: 8091
+    hostPort: 8090
     protocol: TCP

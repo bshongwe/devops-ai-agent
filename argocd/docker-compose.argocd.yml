@@ -1,0 +1,28 @@
+services:
+  argocd-server:
+    build:
+      context: ..
+      dockerfile: argocd/Dockerfile
+    container_name: argocd-server
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  ci-cd-network:
+    external: true
+
+volumes:
+  argocd-data:

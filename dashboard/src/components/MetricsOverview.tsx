@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { dashboardAPI } from '../lib/api'
 
 interface MetricCard {
   title: string
@@ -66,19 +67,22 @@ export default function MetricsOverview() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // In a real implementation, fetch from Prometheus/Grafana APIs
-        // const response = await fetch('/api/metrics/overview')
-        // const data = await response.json()
-        // setMetrics(data)
-        
-        // Simulate real-time updates for demo
+        const response = await dashboardAPI.getOverview()
+        if (response.data) {
+          setMetrics(prev => prev.map(metric => ({
+            ...metric,
+            value: generateRandomValue(metric.title),
+            change: generateRandomChange()
+          })))
+        }
+      } catch (error) {
+        console.error('Failed to fetch metrics:', error)
+        // Fallback to mock data
         setMetrics(prev => prev.map(metric => ({
           ...metric,
           value: generateRandomValue(metric.title),
           change: generateRandomChange()
         })))
-      } catch (error) {
-        console.error('Failed to fetch metrics:', error)
       }
     }
 

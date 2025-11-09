@@ -13,7 +13,12 @@ services:
       - GITHUB_APP_ID=${GITHUB_APP_ID}
       - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
-      - CORS_ORIGIN=http://localhost:3001
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3001,http://localhost:3002}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     volumes:
       - ./logs:/app/logs
       - ./.env:/app/.env:ro
@@ -70,9 +75,27 @@ services:
       timeout: 10s
       retries: 3
 
-  # ArgoCD is now running in Kubernetes cluster (Kind)
-  # Access via: https://localhost:8080 (admin/LIYGSScjppIVxXd6)
-  # Port forwarding: kubectl port-forward svc/argocd-server -n argocd 8080:443
+  # ArgoCD Server
+  argocd-server:
+    build:
+      context: .
+      dockerfile: argocd/Dockerfile
+    container_name: argocd-server
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Nginx reverse proxy for local development
   nginx:
@@ -116,6 +139,8 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+    env_file:
+      - .env
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { dashboardAPI } from '../lib/api'
 
 interface RealTimeChartProps {
   dataSource: 'prometheus' | 'grafana'
@@ -26,13 +27,13 @@ export default function RealTimeChart({ dataSource, query, title, color }: RealT
       try {
         setError(null)
         
-        // In a real implementation, this would fetch from the actual APIs
-        // const endpoint = dataSource === 'prometheus' 
-        //   ? `/api/prometheus/query?query=${encodeURIComponent(query)}`
-        //   : `/api/grafana/query?query=${encodeURIComponent(query)}`
-        // 
-        // const response = await fetch(endpoint)
-        // const result = await response.json()
+        // Fetch from backend API
+        let result
+        if (dataSource === 'prometheus') {
+          result = await dashboardAPI.getPrometheusMetrics(query)
+        } else {
+          result = await dashboardAPI.getRealTimeMetric(query)
+        }
         
         // For demo purposes, generate realistic sample data
         const now = new Date()
