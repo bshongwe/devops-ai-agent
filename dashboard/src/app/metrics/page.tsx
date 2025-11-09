@@ -11,11 +11,11 @@ export default function MetricsPage() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // In a real implementation, fetch from the dashboard API
+        // Fetch from our actual dashboard API endpoints
         const [overview, infrastructure, application] = await Promise.all([
-          fetch('/api/agent/dashboard/overview').then(r => r.json()).catch(() => ({})),
-          fetch('/api/agent/dashboard/infrastructure').then(r => r.json()).catch(() => ({})),
-          fetch('/api/agent/dashboard/application').then(r => r.json()).catch(() => ({}))
+          fetch('http://localhost:3000/dashboard/overview').then(r => r.json()).catch(() => ({})),
+          fetch('http://localhost:3000/dashboard/infrastructure').then(r => r.json()).catch(() => ({})),
+          fetch('http://localhost:3000/dashboard/application').then(r => r.json()).catch(() => ({}))
         ])
         
         setMetricsData({ overview, infrastructure, application })

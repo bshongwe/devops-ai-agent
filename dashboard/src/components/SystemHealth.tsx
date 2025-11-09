@@ -13,66 +13,44 @@ interface HealthStatus {
 }
 
 export default function SystemHealth({}: SystemHealthProps) {
-  const [healthData, setHealthData] = useState<HealthStatus[]>([
-    {
-      service: 'CI-CD Agent',
-      status: 'healthy',
-      uptime: '99.9%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'All endpoints responding'
-    },
-    {
-      service: 'PostgreSQL',
-      status: 'healthy',
-      uptime: '100%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'Database operational'
-    },
-    {
-      service: 'Redis',
-      status: 'healthy',
-      uptime: '99.8%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'Cache layer active'
-    },
-    {
-      service: 'Prometheus',
-      status: 'healthy',
-      uptime: '99.7%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'Metrics collection running'
-    },
-    {
-      service: 'Grafana',
-      status: 'healthy',
-      uptime: '99.9%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'Dashboards accessible'
-    },
-    {
-      service: 'ArgoCD',
-      status: 'warning',
-      uptime: '98.5%',
-      lastCheck: new Date().toLocaleTimeString(),
-      message: 'Sync in progress'
-    }
-  ])
+  const [healthData, setHealthData] = useState<HealthStatus[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
-        // In a real implementation, this would fetch from your health check API
-        // const response = await fetch('/api/health/all')
-        // const data = await response.json()
-        // setHealthData(data)
+        setIsLoading(true)
+        const response = await fetch('http://localhost:3000/dashboard/health')
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const data = await response.json()
         
-        // For now, simulate data updates
-        setHealthData(prev => prev.map(item => ({
-          ...item,
-          lastCheck: new Date().toLocaleTimeString()
-        })))
+        // Transform the API data to match our HealthStatus interface
+        const transformedData: HealthStatus[] = data.map((service: any) => {
+          let mappedStatus: 'healthy' | 'warning' | 'error' = 'error'
+          if (service.status === 'healthy' || service.status === 'up') {
+            mappedStatus = 'healthy'
+          } else if (service.status === 'warning' || service.status === 'degraded') {
+            mappedStatus = 'warning'
+          }
+          
+          return {
+            service: service.service,
+            status: mappedStatus,
+            uptime: service.uptime,
+            lastCheck: service.lastCheck,
+            message: service.message
+          }
+        })
+        
+        setHealthData(transformedData)
       } catch (error) {
         console.error('Failed to fetch health data:', error)
+        // Set empty array on error
+        setHealthData([])
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -100,6 +78,19 @@ export default function SystemHealth({}: SystemHealthProps) {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="dashboard-card">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="loading-spinner mx-auto mb-4"></div>
+            <h3 className="text-lg font-semibold text-white">Loading System Health...</h3>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="dashboard-card">
       <div className="flex items-center justify-between mb-6">
@@ -110,10 +101,15 @@ export default function SystemHealth({}: SystemHealthProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {healthData.map((item, index) => (
+      {healthData.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-gray-400">No health data available</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {healthData.map((item) => (
           <div 
-            key={index}
+            key={item.service}
             className={`p-4 rounded-lg border ${getStatusBg(item.status)} border-gray-700 transition-all hover:border-gray-600`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -138,7 +134,8 @@ export default function SystemHealth({}: SystemHealthProps) {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Overall System Status */}
       <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
