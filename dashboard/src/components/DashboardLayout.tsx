@@ -1,12 +1,15 @@
 'use client'
 
 import { ReactNode } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 interface DashboardLayoutProps {
   children: ReactNode
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: Readonly<DashboardLayoutProps>) {
+  const pathname = usePathname()
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Navigation Header */}
@@ -18,18 +21,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <h1 className="text-xl font-bold text-white">CI-CD Agent</h1>
               </div>
               <nav className="hidden md:flex space-x-8">
-                <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link 
+                  href="/" 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/' ? 'text-white bg-gray-700' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
                   Overview
-                </a>
-                <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                </Link>
+                <Link 
+                  href="/metrics" 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/metrics' ? 'text-white bg-gray-700' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
                   Metrics
-                </a>
-                <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                </Link>
+                <Link 
+                  href="/logs" 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/logs' ? 'text-white bg-gray-700' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
                   Logs
-                </a>
-                <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                </Link>
+                <Link 
+                  href="/alerts" 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/alerts' ? 'text-white bg-gray-700' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
                   Alerts
-                </a>
+                </Link>
               </nav>
             </div>
             
