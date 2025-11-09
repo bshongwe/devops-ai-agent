@@ -21,6 +21,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
     
+    // Allow dashboard endpoints for unified monitoring
+    if (request.url?.startsWith('/dashboard/')) {
+      return true;
+    }
+    
     return super.canActivate(context);
   }
 }
