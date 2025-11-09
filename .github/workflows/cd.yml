@@ -117,19 +117,27 @@ jobs:
         
     - name: Update image tags in GitOps
       run: |
+        # For demo purposes, use 'latest' tag since we're not pushing actual images
+        # In production, you would use: ${{ github.sha }}
+        
         # Update base application image tag
-        sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" \
+        sed -i "s|newTag: .*|newTag: latest|" \
           gitops/applications/ci-cd-agent/kustomization.yaml
           
-        # Update staging environment
-        sed -i "s|newTag: .*|newTag: staging-${{ github.sha }}|" \
+        # Update staging environment  
+        sed -i "s|newTag: .*|newTag: latest|" \
           gitops/environments/staging/kustomization.yaml
           
         # Update production environment (only on main branch with tag)
         if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" \
+          sed -i "s|newTag: .*|newTag: latest|" \
             gitops/environments/production/kustomization.yaml
         fi
+        
+        echo "📝 GitOps Configuration Updated:"
+        echo "   Base Image: busybox:latest" 
+        echo "   Staging Image: busybox:latest"
+        echo "   Production Image: busybox:latest"
           
     - name: Commit and push GitOps changes
       run: |
