@@ -13,7 +13,7 @@ resources:
 images:
   - name: ci-cd-agent
     newName: busybox
-    newTag: d764f573bf5b3d97540f02fde869095bee386152
+    newTag: latest
 
 labels:
   - pairs:
