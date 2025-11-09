@@ -26,9 +26,8 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     if: |
-      (github.event.workflow_run.conclusion == 'success' || 
-       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')) &&
-      secrets.KUBECONFIG_STAGING != ''
+      github.event.workflow_run.conclusion == 'success' || 
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment:
       name: staging
       url: https://staging-ci-cd-agent.example.com
@@ -37,17 +36,31 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Check if staging kubeconfig exists
+      id: check-staging
+      run: |
+        if [ -z "${{ secrets.KUBECONFIG_STAGING }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⏭️  KUBECONFIG_STAGING not configured, skipping staging deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "✅ KUBECONFIG_STAGING configured, proceeding with deployment"
+        fi
+      
     - name: Setup kubectl
+      if: steps.check-staging.outputs.skip == 'false'
       uses: azure/setup-kubectl@v3
       with:
         version: 'v1.28.0'
         
     - name: Configure kubectl
+      if: steps.check-staging.outputs.skip == 'false'
       run: |
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
         
     - name: Deploy to staging
+      if: steps.check-staging.outputs.skip == 'false'
       run: |
         kubectl set image deployment/ci-cd-agent \
           ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
@@ -55,6 +68,7 @@ jobs:
         kubectl rollout status deployment/ci-cd-agent -n staging
         
     - name: Run health checks
+      if: steps.check-staging.outputs.skip == 'false'
       run: |
         kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n staging --timeout=300s
         curl -f https://staging-ci-cd-agent.example.com/webhooks/health
@@ -62,9 +76,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: |
-      github.event.inputs.environment == 'production' &&
-      secrets.KUBECONFIG_PRODUCTION != ''
+    if: github.event.inputs.environment == 'production'
     environment:
       name: production
       url: https://ci-cd-agent.example.com
@@ -73,17 +85,31 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Check if production kubeconfig exists
+      id: check-production
+      run: |
+        if [ -z "${{ secrets.KUBECONFIG_PRODUCTION }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⏭️  KUBECONFIG_PRODUCTION not configured, skipping production deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "✅ KUBECONFIG_PRODUCTION configured, proceeding with deployment"
+        fi
+      
     - name: Setup kubectl
+      if: steps.check-production.outputs.skip == 'false'
       uses: azure/setup-kubectl@v3
       with:
         version: 'v1.28.0'
         
     - name: Configure kubectl
+      if: steps.check-production.outputs.skip == 'false'
       run: |
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
         
     - name: Deploy to production
+      if: steps.check-production.outputs.skip == 'false'
       run: |
         kubectl set image deployment/ci-cd-agent \
           ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
@@ -91,12 +117,13 @@ jobs:
         kubectl rollout status deployment/ci-cd-agent -n production
         
     - name: Run health checks
+      if: steps.check-production.outputs.skip == 'false'
       run: |
         kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n production --timeout=300s
         curl -f https://ci-cd-agent.example.com/webhooks/health
         
     - name: Notify deployment
-      if: success()
+      if: success() && steps.check-production.outputs.skip == 'false'
       uses: 8398a7/action-slack@v3
       with:
         status: success
@@ -326,21 +353,4 @@ jobs:
         elif [ "${{ needs.argocd-sync.result }}" == "skipped" ]; then
           echo "⏭️  GitOps Sync: SKIPPED"
         else
-          echo "❌ GitOps Sync: ${{ needs.argocd-sync.result }}"
-        fi
-        
-        if [ "${{ needs.local-deployment.result }}" == "success" ]; then
-          echo "✅ Local Deployment: SUCCESS"
-        elif [ "${{ needs.local-deployment.result }}" == "skipped" ]; then
-          echo "⏭️  Local Deployment: SKIPPED"
-        else
-          echo "❌ Local Deployment: ${{ needs.local-deployment.result }}"
-        fi
-        
-        echo ""
-        echo "💡 For local Kind cluster deployment:"
-        echo "   1. Pull latest changes: git pull origin main"
-        echo "   2. Pull image from GHCR: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        echo "   3. Load into Kind: kind load docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --name devops-cluster"
-        echo "   4. Apply GitOps: ./manual-gitops-sync.sh --update-image"
-        echo "   5. Access ArgoCD: https://localhost:30080 (admin/LIYGSScjppIVxXd6)"
+          echo "❌
