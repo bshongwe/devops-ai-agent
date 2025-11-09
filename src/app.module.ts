@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { AppController } from './controllers/app.controller';
 import { PipelineController } from './controllers/pipeline.controller';
 import { GitHubController } from './controllers/github.controller';
 import { WebhookController } from './controllers/webhook.controller';
@@ -17,8 +19,10 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
       envFilePath: ['.env.local', '.env'],
     }),
     AuthModule,
+    MetricsModule,
   ],
   controllers: [
+    AppController,
     PipelineController,
     GitHubController,
     WebhookController,

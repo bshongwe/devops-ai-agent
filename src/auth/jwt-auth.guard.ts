@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ExecutionContext } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ExecutionContext } from '@nestjs/common';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -12,8 +11,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
     
-    // Allow health check endpoints
-    if (request.url === '/health' || request.url === '/') {
+    // Allow public endpoints
+    if (request.url === '/health' || request.url === '/' || request.url === '/info') {
+      return true;
+    }
+    
+    // Allow metrics endpoint for Prometheus scraping
+    if (request.url === '/metrics') {
       return true;
     }
     
