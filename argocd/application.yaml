@@ -15,9 +15,9 @@ spec:
   
   # Source configuration
   source:
-    repoURL: https://github.com/your-org/ci-cd-agent-gitops
+    repoURL: https://github.com/your-org/ci-cd-agent
     targetRevision: HEAD
-    path: applications/ci-cd-agent/overlays/production
+    path: k8s
     
   # Destination configuration
   destination:

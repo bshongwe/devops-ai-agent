@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-cd-agent
+  labels:
+    app: ci-cd-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ci-cd-agent
+  template:
+    metadata:
+      labels:
+        app: ci-cd-agent
+    spec:
+      containers:
+      - name: ci-cd-agent
+        image: sandbox-ci-cd-agent:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ci-cd-agent-service
+spec:
+  selector:
+    app: ci-cd-agent
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
