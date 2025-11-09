@@ -353,4 +353,21 @@ jobs:
         elif [ "${{ needs.argocd-sync.result }}" == "skipped" ]; then
           echo "⏭️  GitOps Sync: SKIPPED"
         else
-          echo "❌
+          echo "❌ GitOps Sync: ${{ needs.argocd-sync.result }}"
+        fi
+        
+        if [ "${{ needs.local-deployment.result }}" == "success" ]; then
+          echo "✅ Local Deployment: SUCCESS"
+        elif [ "${{ needs.local-deployment.result }}" == "skipped" ]; then
+          echo "⏭️  Local Deployment: SKIPPED"
+        else
+          echo "❌ Local Deployment: ${{ needs.local-deployment.result }}"
+        fi
+        
+        echo ""
+        echo "💡 For local Kind cluster deployment:"
+        echo "   1. Pull latest changes: git pull origin main"
+        echo "   2. Pull image from GHCR: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        echo "   3. Load into Kind: kind load docker-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --name devops-cluster"
+        echo "   4. Apply GitOps: ./manual-gitops-sync.sh --update-image"
+        echo "   5. Access ArgoCD: https://localhost:30080 (admin/LIYGSScjppIVxXd6)"
