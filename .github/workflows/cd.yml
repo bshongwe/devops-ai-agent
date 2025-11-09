@@ -9,8 +9,29 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
-        required: true
+        description: 'Deplo    - name: Local deployment instructions
+      run: |
+        echo "🎯 Local Deployment Instructions:"
+        echo ""
+        echo "📋 1. Pull GitOps changes and apply locally:"
+        echo "   git pull origin main"
+        echo "   ./manual-gitops-sync.sh --update-image"
+        echo ""
+        echo "🌐 2. Access ArgoCD UI (NodePort already configured):"
+        echo "   URL: https://localhost:30080"
+        echo "   Username: admin"  
+        echo "   Password: LIYGSScjppIVxXd6"
+        echo ""
+        echo "🔍 3. Alternative ArgoCD access (port-forward):"
+        echo "   kubectl port-forward svc/argocd-server -n argocd 8080:443"
+        echo "   URL: https://localhost:8080"
+        echo ""
+        echo "📊 4. Check application status:"
+        echo "   kubectl get applications -n argocd"
+        echo "   kubectl get pods -n ci-cd-agent"
+        echo ""
+        echo "💡 Note: GitHub Actions cannot access local Kind clusters."
+        echo "   GitOps manifests are updated here, but deployment happens locally."        required: true
         default: 'staging'
         type: choice
         options:
@@ -36,30 +57,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-        
-    - name: Configure kubectl
+    - name: Skip direct kubectl deployment
       run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
-        
-    - name: Deploy to staging
-      run: |
-        kubectl set image deployment/ci-cd-agent \
-          ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          -n staging
-        kubectl rollout status deployment/ci-cd-agent -n staging
-        
-    - name: Run health checks
-      run: |
-        kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n staging --timeout=300s
-        curl -f https://staging-ci-cd-agent.example.com/webhooks/health
+        echo "⚠️  Skipping direct kubectl deployment to staging"
+        echo "💡 This job is designed for remote staging clusters with KUBECONFIG_STAGING"
+        echo ""
+        echo "🎯 For local development:"
+        echo "   1. GitOps manifests will be updated in the 'argocd-sync' job"
+        echo "   2. Use './manual-gitops-sync.sh' to deploy to your local Kind cluster"
+        echo "   3. Access ArgoCD UI at https://localhost:30080"
+        echo ""
+        echo "🏗️  To enable remote staging deployment:"
+        echo "   1. Set up a remote Kubernetes cluster (EKS, GKE, AKS)"
+        echo "   2. Add KUBECONFIG_STAGING secret with base64-encoded kubeconfig"
+        echo "   3. Update the staging URL in this workflow"
+        echo ""
+        echo "✅ Staging deployment preparation complete"
         
   deploy-production:
-    name: Deploy to Production
+    name: Deploy to Production  
     runs-on: ubuntu-latest
     needs: deploy-staging
     if: github.event.inputs.environment == 'production'
@@ -71,37 +87,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-        
-    - name: Configure kubectl
+    - name: Skip direct kubectl deployment
       run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+        echo "⚠️  Skipping direct kubectl deployment to production"
+        echo "💡 This job is designed for remote production clusters with KUBECONFIG_PRODUCTION"
+        echo ""
+        echo "🎯 For local development:"
+        echo "   1. GitOps manifests will be updated in the 'argocd-sync' job"
+        echo "   2. Use './manual-gitops-sync.sh' to deploy to your local Kind cluster"
+        echo "   3. Access ArgoCD UI at https://localhost:30080"
+        echo ""
+        echo "🏗️  To enable remote production deployment:"
+        echo "   1. Set up a remote Kubernetes cluster (EKS, GKE, AKS)"
+        echo "   2. Add KUBECONFIG_PRODUCTION secret with base64-encoded kubeconfig"  
+        echo "   3. Update the production URL in this workflow"
+        echo "   4. Configure SLACK_WEBHOOK_URL for deployment notifications"
+        echo ""
+        echo "✅ Production deployment preparation complete"
         
-    - name: Deploy to production
+    - name: Notify deployment readiness
       run: |
-        kubectl set image deployment/ci-cd-agent \
-          ci-cd-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          -n production
-        kubectl rollout status deployment/ci-cd-agent -n production
-        
-    - name: Run health checks
-      run: |
-        kubectl wait --for=condition=ready pod -l app=ci-cd-agent -n production --timeout=300s
-        curl -f https://ci-cd-agent.example.com/webhooks/health
-        
-    - name: Notify deployment
-      if: success()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        channel: '#deployments'
-        text: 'CI-CD Agent successfully deployed to production! 🚀'
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        echo "🚀 CI-CD Agent ready for production deployment!"
+        echo "📋 GitOps manifests updated and ready to sync"
+        echo "🔄 ArgoCD will handle the actual deployment process"
         
   argocd-sync:
     name: Update GitOps and Sync ArgoCD
@@ -117,27 +125,29 @@ jobs:
         
     - name: Update image tags in GitOps
       run: |
-        # For demo purposes, use 'latest' tag since we're not pushing actual images
-        # In production, you would use: ${{ github.sha }}
+        # Update GitOps manifests with new image tags
+        echo "🔄 Updating GitOps manifests..."
         
-        # Update base application image tag
-        sed -i "s|newTag: .*|newTag: latest|" \
+        # For base application (use busybox:latest for demo)
+        sed -i 's|newTag: .*|newTag: latest|' \
           gitops/applications/ci-cd-agent/kustomization.yaml
           
-        # Update staging environment  
-        sed -i "s|newTag: .*|newTag: latest|" \
+        # For staging environment (use actual registry path for staging)  
+        sed -i "s|newTag: staging-.*|newTag: staging-${{ github.sha }}|" \
           gitops/environments/staging/kustomization.yaml
           
-        # Update production environment (only on main branch with tag)
+        # For production environment (only on main branch)
         if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          sed -i "s|newTag: .*|newTag: latest|" \
+          sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" \
             gitops/environments/production/kustomization.yaml
         fi
         
         echo "📝 GitOps Configuration Updated:"
-        echo "   Base Image: busybox:latest" 
-        echo "   Staging Image: busybox:latest"
-        echo "   Production Image: busybox:latest"
+        echo "   Base Application: busybox:latest (demo image)"
+        echo "   Staging: ghcr.io/bshongwe/devops-ai-agent:staging-${{ github.sha }}"
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "   Production: ghcr.io/bshongwe/devops-ai-agent:${{ github.sha }}"
+        fi
           
     - name: Commit and push GitOps changes
       run: |
