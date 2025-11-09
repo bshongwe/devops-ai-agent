@@ -124,6 +124,29 @@ services:
       - ci-cd-network
     restart: unless-stopped
 
+  # Unified Dashboard
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: ci-cd-dashboard
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    volumes:
+      - ./dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    depends_on:
+      - ci-cd-agent
+      - prometheus
+      - grafana
+
 networks:
   ci-cd-network:
     driver: bridge
