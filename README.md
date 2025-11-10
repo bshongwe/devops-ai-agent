@@ -1,6 +1,6 @@
-# DevOps Ai CI-CD Agent
+# DevOps AI CI-CD Agent
 
-A comprehensive CI-CD orchestration agent built with NestJS, featuring GitHub App integration, automated pipeline generation, and ArgoCD GitOps deployment management.
+A comprehensive CI-CD orchestration agent built with NestJS, featuring GitHub App integration, automated pipeline generation, and ArgoCD GitOps deployment management with real-time monitoring.
 
 ## 🚀 Features
 
@@ -8,17 +8,18 @@ A comprehensive CI-CD orchestration agent built with NestJS, featuring GitHub Ap
 - **Pipeline Generation**: Automated CI/CD pipeline configuration based on project type
 - **Webhook Handling**: Real-time GitHub event processing
 - **Docker Support**: Containerized deployment with multi-stage builds
-- **ArgoCD Integration**: GitOps-based deployment management
+- **ArgoCD Integration**: GitOps-based deployment management in Kind cluster
+- **Real-time Dashboard**: Live metrics and service health monitoring
 - **Comprehensive API**: Full OpenAPI 3.0 specification with all endpoints
-- **Monitoring**: Built-in health checks and metrics collection
+- **Monitoring Stack**: Prometheus metrics + Grafana dashboards
 - **Security**: JWT authentication, webhook signature verification
 
 ## 📋 Prerequisites
 
 - Node.js 18+ 
 - Docker & Docker Compose
-- Kubernetes cluster (for ArgoCD deployment)
-- GitHub App (see setup instructions below)
+- Kind (Kubernetes in Docker)
+- GitHub App (optional - see setup instructions below)
 
 ## 🛠️ Quick Start
 
@@ -31,37 +32,32 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-### 2. Install Dependencies
+### 2. Start All Services
 
 ```bash
-npm install
-```
-
-### 3. Development Mode
-
-```bash
-# Start with Docker Compose (recommended)
+# Start complete stack
 docker-compose up -d
 
-# Or run locally
-npm run start:dev
+# Create Kind cluster for ArgoCD
+kind create cluster --config kind-config.yaml
 ```
 
-### 4. Access Services
+### 3. Access Services
 
-- **API**: http://localhost:3000
-- **API Documentation**: http://localhost:3000/api
-- **Grafana**: http://localhost:3001 (admin/admin123)
-- **ArgoCD**: http://localhost:8080 (admin/admin)
+- **Dashboard**: http://localhost:8080 - Real-time metrics and monitoring
+- **CI-CD Agent API**: http://localhost:3000 - Main application API
+- **API Documentation**: http://localhost:3000/api - Interactive OpenAPI docs
+- **ArgoCD**: http://localhost:8081 - GitOps deployment management
+- **Grafana**: http://localhost:3001 (admin/admin123) - Monitoring dashboards
+- **Prometheus**: http://localhost:9090 - Metrics collection
 
-## 🔧 GitHub App Setup
+## 🔧 GitHub App Setup (Optional)
 
 ### 1. Create GitHub App
 
 1. Go to GitHub Settings > Developer settings > GitHub Apps
 2. Click "New GitHub App"
-3. Use the manifest from `.github/apps/manifest.json`
-4. Or manually configure with these permissions:
+3. Configure with these permissions:
 
 **Repository Permissions:**
 - Actions: Write
@@ -69,9 +65,6 @@ npm run start:dev
 - Deployments: Write
 - Pull requests: Write
 - Workflows: Write
-
-**Organization Permissions:**
-- Members: Read
 
 **Webhook Events:**
 - Push, Pull request, Installation, Workflow run
@@ -87,22 +80,19 @@ Your private key content here
 GITHUB_WEBHOOK_SECRET=your_webhook_secret
 ```
 
-### 3. Install App
-
-Install the GitHub App on your target repositories via the GitHub marketplace or direct installation URL.
-
 ## 📚 API Documentation
 
-The API is fully documented with OpenAPI 3.0. After starting the application, visit:
-- Swagger UI: http://localhost:3000/api
-- OpenAPI JSON: http://localhost:3000/api-json
-- OpenAPI YAML: Available in `openapi.yaml`
+The API is fully documented with OpenAPI 3.0:
+- **Swagger UI**: http://localhost:3000/api
+- **OpenAPI JSON**: http://localhost:3000/api-json
+- **OpenAPI YAML**: Available in `openapi.yaml`
 
 ### Key Endpoints
 
+- `GET /dashboard/overview` - Get dashboard metrics
+- `GET /dashboard/health` - System health status
+- `GET /dashboard/metrics/prometheus` - Prometheus metrics
 - `POST /pipelines/generate` - Generate new CI/CD pipeline
-- `POST /pipelines/{id}/execute` - Execute pipeline  
-- `GET /pipelines/{id}/status` - Get pipeline status
 - `POST /webhooks/github` - Handle GitHub webhooks
 - `GET /github/installations` - List GitHub App installations
 
@@ -110,54 +100,58 @@ The API is fully documented with OpenAPI 3.0. After starting the application, vi
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   GitHub App    │────│  CI-CD Agent    │────│     ArgoCD      │
-│   Integration   │    │   (NestJS)      │    │   (GitOps)      │
+│   Dashboard     │────│  CI-CD Agent    │────│     ArgoCD      │
+│  (Next.js)      │    │   (NestJS)      │    │  (Kind K8s)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
         │                       │                       │
         ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Webhooks      │    │   Pipeline      │    │   Kubernetes    │
-│   Processing    │    │   Orchestrator  │    │   Deployment    │
+│   Grafana       │    │   Prometheus    │    │   PostgreSQL    │
+│  Monitoring     │    │   Metrics       │    │   Database      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ### Core Components
 
-1. **Authentication Module**: JWT + GitHub App token exchange
-2. **Pipeline Service**: Dynamic pipeline generation based on project type
-3. **Orchestrator Service**: Pipeline execution and monitoring
-4. **GitHub Service**: Repository management and webhook processing
-5. **Webhook Controllers**: Event handling and processing
+1. **Dashboard Service**: Real-time metrics and health monitoring
+2. **Pipeline Service**: Dynamic pipeline generation and execution
+3. **GitHub Service**: Webhook processing and repository management
+4. **Monitoring Stack**: Prometheus + Grafana for observability
+5. **ArgoCD**: GitOps deployment management in Kind cluster
 
 ## 🚀 Deployment
 
-### Docker Deployment
+### Local Development
 
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d --build
+# Start all services
+docker-compose up -d
 
-# Scale services
-docker-compose up -d --scale ci-cd-agent=3
+# Create Kind cluster for ArgoCD
+kind create cluster --config kind-config.yaml
+
+# Install ArgoCD in cluster
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-### Kubernetes Deployment
+### Production Deployment
 
 ```bash
-# Apply ArgoCD application
-kubectl apply -f argocd/application.yaml
+# Build and deploy
+docker-compose up -d --build
 
-# Monitor deployment
+# Monitor services
+docker-compose ps
 kubectl get applications -n argocd
 ```
 
-### Production Configuration
+### Configuration
 
-1. **Environment Variables**: Configure all required environment variables
-2. **Secrets Management**: Use Kubernetes secrets for sensitive data
-3. **TLS/SSL**: Configure HTTPS certificates
-4. **Monitoring**: Set up Prometheus/Grafana dashboards
-5. **Backup**: Configure database backups
+1. **Environment Variables**: Configure in `.env` file
+2. **Secrets Management**: Use environment variables for sensitive data
+3. **Monitoring**: Prometheus/Grafana automatically configured
+4. **Health Checks**: Built-in health monitoring for all services
 
 ## 🧪 Testing
 
@@ -171,29 +165,37 @@ npm run test:e2e
 # Coverage
 npm run test:cov
 
-# Watch mode
-npm run test:watch
+# Test service health
+curl http://localhost:3000/dashboard/health
 ```
 
 ## 📊 Monitoring
 
-### Health Checks
-- Application: `GET /webhooks/health`
-- Docker: Built-in health check every 30s
-- Kubernetes: Readiness and liveness probes
+### Real-time Dashboard
+- **Main Dashboard**: http://localhost:8080 - Live system metrics
+- **Service Health**: Real-time status of all components
+- **Performance Metrics**: CPU, memory, response times
 
-### Metrics
-- Prometheus metrics: http://localhost:9090
-- Grafana dashboards: http://localhost:3001
-- Application logs: `docker-compose logs -f ci-cd-agent`
+### Monitoring Stack
+- **Prometheus**: http://localhost:9090 - Metrics collection
+- **Grafana**: http://localhost:3001 (admin/admin123) - Visualization
+- **Health Checks**: Built-in monitoring for all services
+- **Application Logs**: `docker-compose logs -f ci-cd-agent`
+
+### ArgoCD Management
+- **ArgoCD UI**: http://localhost:8081 - GitOps deployments
+- **Admin Password**: Get with `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d`
 
 ## 🔒 Security
 
 - **Authentication**: JWT-based API authentication
-- **Webhook Security**: GitHub signature verification
-- **Container Security**: Non-root user, minimal base image
+- **Webhook Security**: GitHub signature verification  
+- **Container Security**: Non-root user, minimal base images
 - **Network Security**: Docker network isolation
-- **Secrets**: Environment-based configuration
+- **Secrets Management**: Environment-based configuration
+- **Health Monitoring**: Real-time security status checks
+
+See [SECURITY.md](SECURITY.md) for detailed security policies and reporting procedures.
 
 ## 📖 Development
 
@@ -201,37 +203,50 @@ npm run test:watch
 
 ```
 src/
-├── auth/                 # Authentication (JWT, GitHub App)
-├── controllers/          # API controllers (Pipeline, GitHub, Webhook)
-├── services/            # Business logic (Pipeline, Orchestrator, GitHub)
+├── controllers/          # API controllers (Dashboard, Pipeline, GitHub)
+├── services/            # Business logic (Dashboard, Pipeline, GitHub)
+├── auth/                # Authentication (JWT, GitHub App)
 ├── dto/                 # Data transfer objects
-├── main.ts              # Application entry point
-└── app.module.ts        # Root module
+└── main.ts              # Application entry point
 
-.github/
-├── workflows/           # CI/CD workflows
-└── apps/               # GitHub App manifest
-
-argocd/                  # ArgoCD configuration
-docker-compose.yml       # Local development setup
-Dockerfile              # Multi-stage container build
-openapi.yaml            # Complete API specification
+dashboard/               # Next.js real-time dashboard
+argocd/                  # ArgoCD configurations and manifests
+monitoring/              # Prometheus and Grafana configs
+k8s/                     # Kubernetes deployment manifests
+docker-compose.yml       # Complete service orchestration
 ```
 
-### Adding New Features
+### Development Workflow
 
-1. Create DTO classes with validation decorators
-2. Implement service logic with proper error handling
-3. Add controller endpoints with OpenAPI documentation
-4. Write unit tests for new functionality
-5. Update API documentation
+1. **Start Services**: `docker-compose up -d`
+2. **Create Kind Cluster**: `kind create cluster --config kind-config.yaml`
+3. **Install ArgoCD**: Follow ArgoCD setup in deployment section
+4. **Access Dashboards**: Use URLs in Quick Start section
+5. **Monitor Logs**: `docker-compose logs -f [service-name]`
 
 ### Code Style
 
 - ESLint + Prettier for code formatting
 - NestJS decorators for dependency injection
-- Class-validator for request validation
-- Swagger decorators for API documentation
+- Real-time data updates via API polling
+- Comprehensive health checks and monitoring
+
+## 🎯 Current Status
+
+### ✅ Working Services
+- **Dashboard**: http://localhost:8080 - Real-time metrics and monitoring
+- **CI-CD Agent**: http://localhost:3000 - Main API with live health checks
+- **ArgoCD**: http://localhost:8081 - GitOps deployment management
+- **Grafana**: http://localhost:3001 - Monitoring dashboards with real data
+- **Prometheus**: http://localhost:9090 - Metrics collection
+
+### 🔧 Features Implemented
+- Real-time service health monitoring
+- Live system metrics (CPU, memory, response times)
+- ArgoCD GitOps deployment in Kind cluster
+- Comprehensive API documentation
+- Automated container orchestration
+- Security best practices
 
 ## 🤝 Contributing
 
@@ -247,19 +262,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🆘 Support
 
-- **Documentation**: Check the `/api` endpoint for interactive API docs
+- **Documentation**: Interactive API docs at http://localhost:3000/api
 - **Issues**: Create GitHub issues for bug reports
-- **Discussions**: Use GitHub Discussions for questions
-- **Security**: Report security vulnerabilities privately
-
-## 🔗 Links
-
-- [NestJS Documentation](https://docs.nestjs.com/)
-- [GitHub Apps Documentation](https://docs.github.com/en/developers/apps)
-- [ArgoCD Documentation](https://argo-cd.readthedocs.io/)
-- [Docker Documentation](https://docs.docker.com/)
-- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- **Security**: See [SECURITY.md](SECURITY.md) for security policies
 
 ---
 
-Made with ❤️ by the CI-CD Agent Team
+Made with ❤️ by the DevOps AI Team
