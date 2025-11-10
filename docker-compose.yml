@@ -75,18 +75,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # ArgoCD Mock Dashboard
-  argocd-dashboard:
-    image: nginx:alpine
-    container_name: argocd-dashboard
-    ports:
-      - "8080:80"
-    volumes:
-      - ./argocd/mock-ui:/usr/share/nginx/html
-    networks:
-      - ci-cd-network
-    restart: unless-stopped
-
   # Nginx reverse proxy for local development
   nginx:
     image: nginx:alpine
@@ -102,6 +90,11 @@ services:
     depends_on:
       - ci-cd-agent
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Prometheus for monitoring
   prometheus:
@@ -120,6 +113,11 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Grafana for visualization
   grafana:
@@ -138,15 +136,97 @@ services:
     networks:
       - ci-cd-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Unified Dashboard
-  dashboard:
+  # ArgoCD Server
+  argocd-server:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: argocd-server
+    ports:
+      - "8081:8080"
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+      - ARGOCD_SERVER_ROOTPATH=/
+      - ARGOCD_REDIS_SERVER=argocd-redis:6379
+      - ARGOCD_REPO_SERVER=argocd-repo-server:8081
+      - KUBERNETES_MASTER=https://172.19.0.2:6443
+      - KUBECONFIG=/home/argocd/.kube/config
+    command: [
+      "argocd-server",
+      "--insecure",
+      "--redis", "argocd-redis:6379",
+      "--repo-server", "argocd-repo-server:8081"
+    ]
+    volumes:
+      - argocd-data:/home/argocd
+      - ${HOME}/.kube:/home/argocd/.kube:ro
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    depends_on:
+      argocd-redis:
+        condition: service_healthy
+      argocd-repo-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ArgoCD Redis
+  argocd-redis:
+    image: redis:7-alpine
+    container_name: argocd-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - argocd-redis-data:/data
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ArgoCD Repository Server
+  argocd-repo-server:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: argocd-repo-server
+    command: ["argocd-repo-server", "--redis", "argocd-redis:6379"]
+    environment:
+      - ARGOCD_REDIS_SERVER=argocd-redis:6379
+    volumes:
+      - argocd-data:/home/argocd
+    networks:
+      - ci-cd-network
+    restart: unless-stopped
+    depends_on:
+      argocd-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "argocd-repo-server"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Development Dashboard (with hot reload)
+  dashboard-dev:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
-    container_name: ci-cd-dashboard
+    container_name: ci-cd-dashboard-dev
     ports:
-      - "3002:3002"
+      - "8080:3002"
     environment:
       - NODE_ENV=development
       - PORT=3002
@@ -161,6 +241,11 @@ services:
       - ci-cd-agent
       - prometheus
       - grafana
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   ci-cd-network:
@@ -173,6 +258,7 @@ volumes:
   redis-data:
   postgres-data:
   argocd-data:
+  argocd-redis-data:
   kube-config:
   prometheus-data:
   grafana-data:
