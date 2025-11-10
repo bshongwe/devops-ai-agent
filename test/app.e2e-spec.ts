@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 
@@ -12,6 +13,17 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    
+    // Setup Swagger for E2E tests
+    const config = new DocumentBuilder()
+      .setTitle('CI-CD Agent API')
+      .setDescription('CI-CD orchestration agent with GitHub App integration')
+      .setVersion('1.0')
+      .build();
+    
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+    
     await app.init();
   });
 
