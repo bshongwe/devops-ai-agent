@@ -87,37 +87,250 @@ The API is fully documented with OpenAPI 3.0:
 - **OpenAPI JSON**: http://localhost:3000/api-json
 - **OpenAPI YAML**: Available in `openapi.yaml`
 
+### API Endpoints Overview
+
+```mermaid
+mindmap
+  root((CI-CD Agent API))
+    Dashboard
+      GET /dashboard/overview
+        Real-time metrics
+        System performance
+      GET /dashboard/health
+        Service health status
+        Centralized monitoring
+      GET /dashboard/metrics/prometheus
+        Prometheus queries
+        Custom metrics
+    Pipelines
+      POST /pipelines/generate
+        Create new pipeline
+        Auto-configuration
+      GET /pipelines/:id
+        Pipeline details
+        Execution status
+      PUT /pipelines/:id/status
+        Update pipeline
+        Status management
+    GitHub
+      POST /webhooks/github
+        Webhook processing
+        Event handling
+      GET /github/installations
+        App installations
+        Repository access
+      GET /webhooks/health
+        Webhook health
+        Service status
+    Documentation
+      GET /api
+        Swagger UI
+        Interactive docs
+      GET /api-json
+        OpenAPI spec
+        JSON format
+```
+
 ### Key Endpoints
 
-- `GET /dashboard/overview` - Get dashboard metrics
-- `GET /dashboard/health` - System health status
-- `GET /dashboard/metrics/prometheus` - Prometheus metrics
-- `POST /pipelines/generate` - Generate new CI/CD pipeline
-- `POST /webhooks/github` - Handle GitHub webhooks
-- `GET /github/installations` - List GitHub App installations
+| Endpoint | Method | Description | Response |
+|----------|--------|-------------|----------|
+| `/dashboard/overview` | GET | Real-time system metrics and performance data | JSON with CPU, memory, requests |
+| `/dashboard/health` | GET | Centralized health status of all services | Array of service health objects |
+| `/dashboard/metrics/prometheus` | GET | Prometheus metrics with custom queries | Prometheus query results |
+| `/pipelines/generate` | POST | Generate new CI/CD pipeline configuration | Pipeline configuration object |
+| `/webhooks/github` | POST | Process GitHub webhook events | Webhook processing status |
+| `/github/installations` | GET | List GitHub App installations | Array of installation objects |
 
 ## 🏗️ Architecture
 
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph "External Services"
+        GH[GitHub]
+        DEV[Developer]
+    end
+
+    subgraph "Docker Network (ci-cd-network)"
+        subgraph "Frontend Layer"
+            DASH[Dashboard<br/>Next.js:8080]
+            NGINX[Nginx Proxy<br/>:80/443]
+        end
+
+        subgraph "Application Layer"
+            API[CI-CD Agent<br/>NestJS:3000]
+            ARGO_PROXY[ArgoCD Proxy<br/>:8081]
+        end
+
+        subgraph "Data Layer"
+            REDIS[(Redis<br/>Cache:6379)]
+            POSTGRES[(PostgreSQL<br/>Database:5432)]
+        end
+
+        subgraph "Monitoring Layer"
+            PROM[Prometheus<br/>Metrics:9090]
+            GRAF[Grafana<br/>Dashboards:3001]
+        end
+    end
+
+    subgraph "Kubernetes (Kind Cluster)"
+        ARGOCD[ArgoCD Server<br/>:30080]
+        K8S_APPS[Deployed Applications]
+    end
+
+    %% External connections
+    GH -->|Webhooks| API
+    DEV -->|Access| DASH
+    DEV -->|API Calls| API
+
+    %% Frontend connections
+    DASH -->|API Calls| API
+    NGINX -->|Proxy| API
+
+    %% Application connections
+    API -->|Cache| REDIS
+    API -->|Persist| POSTGRES
+    API -->|Metrics| PROM
+    ARGO_PROXY -->|Forward| ARGOCD
+
+    %% Monitoring connections
+    PROM -->|Scrape| API
+    PROM -->|Scrape| REDIS
+    PROM -->|Scrape| POSTGRES
+    GRAF -->|Query| PROM
+    DASH -->|Health Checks| PROM
+    DASH -->|Health Checks| GRAF
+
+    %% GitOps flow
+    API -->|Deploy| ARGOCD
+    ARGOCD -->|Sync| K8S_APPS
+
+    classDef frontend fill:#e1f5fe
+    classDef application fill:#f3e5f5
+    classDef data fill:#e8f5e8
+    classDef monitoring fill:#fff3e0
+    classDef k8s fill:#fce4ec
+    classDef external fill:#f5f5f5
+
+    class DASH,NGINX frontend
+    class API,ARGO_PROXY application
+    class REDIS,POSTGRES data
+    class PROM,GRAF monitoring
+    class ARGOCD,K8S_APPS k8s
+    class GH,DEV external
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Dashboard     │────│  CI-CD Agent    │────│     ArgoCD      │
-│  (Next.js)      │    │   (NestJS)      │    │  (Kind K8s)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Grafana       │    │   Prometheus    │    │   PostgreSQL    │
-│  Monitoring     │    │   Metrics       │    │   Database      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+### API Architecture
+
+```mermaid
+graph LR
+    subgraph "API Endpoints (:3000)"
+        subgraph "Dashboard Module"
+            D1[GET /dashboard/overview]
+            D2[GET /dashboard/health]
+            D3[GET /dashboard/metrics/prometheus]
+        end
+
+        subgraph "Pipeline Module"
+            P1[POST /pipelines/generate]
+            P2[GET /pipelines/:id]
+            P3[PUT /pipelines/:id/status]
+        end
+
+        subgraph "GitHub Module"
+            G1[POST /webhooks/github]
+            G2[GET /github/installations]
+            G3[GET /webhooks/health]
+        end
+
+        subgraph "Documentation"
+            DOC1[GET /api - Swagger UI]
+            DOC2[GET /api-json - OpenAPI JSON]
+        end
+    end
+
+    subgraph "Services Layer"
+        DS[DashboardService]
+        PS[PipelineService]
+        GS[GitHubService]
+    end
+
+    subgraph "External Integrations"
+        PROM_API[Prometheus API]
+        GH_API[GitHub API]
+        ARGOCD_API[ArgoCD API]
+    end
+
+    %% Dashboard connections
+    D1 --> DS
+    D2 --> DS
+    D3 --> DS
+    DS --> PROM_API
+
+    %% Pipeline connections
+    P1 --> PS
+    P2 --> PS
+    P3 --> PS
+    PS --> ARGOCD_API
+
+    %% GitHub connections
+    G1 --> GS
+    G2 --> GS
+    G3 --> GS
+    GS --> GH_API
+
+    classDef endpoint fill:#e3f2fd
+    classDef service fill:#f1f8e9
+    classDef external fill:#fce4ec
+
+    class D1,D2,D3,P1,P2,P3,G1,G2,G3,DOC1,DOC2 endpoint
+    class DS,PS,GS service
+    class PROM_API,GH_API,ARGOCD_API external
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub
+    participant API as CI-CD Agent
+    participant DB as PostgreSQL
+    participant PROM as Prometheus
+    participant ARGO as ArgoCD
+    participant DASH as Dashboard
+
+    %% Webhook flow
+    Dev->>GH: Push code
+    GH->>API: Webhook event
+    API->>DB: Store pipeline data
+    API->>ARGO: Trigger deployment
+    ARGO->>ARGO: Sync application
+
+    %% Monitoring flow
+    API->>PROM: Export metrics
+    DASH->>API: Request health status
+    API->>PROM: Query metrics
+    API->>DB: Check service status
+    API-->>DASH: Return health data
+
+    %% Pipeline generation
+    Dev->>API: Request pipeline
+    API->>DB: Store configuration
+    API->>ARGO: Create application
+    API-->>Dev: Return pipeline config
 ```
 
 ### Core Components
 
-1. **Dashboard Service**: Real-time metrics and health monitoring
-2. **Pipeline Service**: Dynamic pipeline generation and execution
+1. **Dashboard Service**: Real-time metrics and centralized health monitoring
+2. **Pipeline Service**: Dynamic CI/CD pipeline generation and execution
 3. **GitHub Service**: Webhook processing and repository management
-4. **Monitoring Stack**: Prometheus + Grafana for observability
-5. **ArgoCD**: GitOps deployment management in Kind cluster
+4. **Monitoring Stack**: Prometheus metrics collection + Grafana visualization
+5. **ArgoCD Integration**: GitOps deployment management in Kind cluster
+6. **Health Monitoring**: Centralized health checks for all services
 
 ## 🚀 Deployment
 
@@ -177,10 +390,67 @@ curl http://localhost:3000/dashboard/health
 - **Performance Metrics**: CPU, memory, response times
 
 ### Monitoring Stack
-- **Prometheus**: http://localhost:9090 - Metrics collection
-- **Grafana**: http://localhost:3001 (admin/admin123) - Visualization
-- **Health Checks**: Built-in monitoring for all services
+
+```mermaid
+flowchart TD
+    subgraph "Health Monitoring Flow"
+        API[CI-CD Agent<br/>:3000]
+        HEALTH[/dashboard/health]
+        
+        subgraph "Service Checks"
+            PG_CHECK[PostgreSQL<br/>TCP:5432]
+            REDIS_CHECK[Redis<br/>TCP:6379]
+            PROM_CHECK[Prometheus<br/>HTTP:9090/-/healthy]
+            GRAF_CHECK[Grafana<br/>HTTP:3000/api/health]
+        end
+        
+        DASH[Dashboard<br/>:8080]
+        
+        API --> HEALTH
+        HEALTH --> PG_CHECK
+        HEALTH --> REDIS_CHECK
+        HEALTH --> PROM_CHECK
+        HEALTH --> GRAF_CHECK
+        HEALTH --> DASH
+    end
+    
+    subgraph "Metrics Collection"
+        PROM[Prometheus<br/>:9090]
+        GRAF[Grafana<br/>:3001]
+        
+        API -->|Export Metrics| PROM
+        PROM -->|Query Data| GRAF
+        DASH -->|Real-time Data| API
+    end
+    
+    classDef service fill:#e1f5fe
+    classDef check fill:#e8f5e8
+    classDef monitor fill:#fff3e0
+    
+    class API,DASH service
+    class PG_CHECK,REDIS_CHECK,PROM_CHECK,GRAF_CHECK check
+    class PROM,GRAF monitor
+```
+
+**Services:**
+- **Prometheus**: http://localhost:9090 - Metrics collection and storage
+- **Grafana**: http://localhost:3001 (admin/admin123) - Data visualization and dashboards
+- **Centralized Health**: http://localhost:3000/dashboard/health - All service status
+- **Real-time Dashboard**: http://localhost:8080 - Live system monitoring
 - **Application Logs**: `docker-compose logs -f ci-cd-agent`
+
+**Health Check Commands:**
+```bash
+# Check all services centrally
+curl http://localhost:3000/dashboard/health
+
+# Check Docker container health
+docker-compose ps
+
+# Individual service checks
+curl http://localhost:9090/-/healthy  # Prometheus
+curl http://localhost:3001/api/health # Grafana
+```
 
 ### ArgoCD Management
 - **ArgoCD UI**: http://localhost:8081 - GitOps deployments
