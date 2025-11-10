@@ -142,82 +142,17 @@ services:
       timeout: 10s
       retries: 3
 
-  # ArgoCD Server
-  argocd-server:
-    image: quay.io/argoproj/argocd:v2.8.4
-    container_name: argocd-server
+  # ArgoCD Port Forwarder (connects to Kind cluster ArgoCD)
+  argocd-proxy:
+    image: nginx:alpine
+    container_name: argocd-proxy
     ports:
-      - "8081:8080"
-    environment:
-      - ARGOCD_SERVER_INSECURE=true
-      - ARGOCD_SERVER_ROOTPATH=/
-      - ARGOCD_REDIS_SERVER=argocd-redis:6379
-      - ARGOCD_REPO_SERVER=argocd-repo-server:8081
-      - KUBERNETES_MASTER=https://172.19.0.2:6443
-      - KUBECONFIG=/home/argocd/.kube/config
-    command: [
-      "argocd-server",
-      "--insecure",
-      "--redis", "argocd-redis:6379",
-      "--repo-server", "argocd-repo-server:8081"
-    ]
+      - "8081:80"
     volumes:
-      - argocd-data:/home/argocd
-      - ${HOME}/.kube:/home/argocd/.kube:ro
+      - ./argocd/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - ci-cd-network
     restart: unless-stopped
-    depends_on:
-      argocd-redis:
-        condition: service_healthy
-      argocd-repo-server:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  # ArgoCD Redis
-  argocd-redis:
-    image: redis:7-alpine
-    container_name: argocd-redis
-    ports:
-      - "6380:6379"
-    volumes:
-      - argocd-redis-data:/data
-    networks:
-      - ci-cd-network
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ArgoCD Repository Server
-  argocd-repo-server:
-    image: quay.io/argoproj/argocd:v2.8.4
-    container_name: argocd-repo-server
-    command: ["argocd-repo-server", "--redis", "argocd-redis:6379"]
-    environment:
-      - ARGOCD_REDIS_SERVER=argocd-redis:6379
-    volumes:
-      - argocd-data:/home/argocd
-    networks:
-      - ci-cd-network
-    restart: unless-stopped
-    depends_on:
-      argocd-redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "pgrep", "argocd-repo-server"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   # Development Dashboard (with hot reload)
   dashboard-dev:
@@ -253,12 +188,13 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
+  kind:
+    external: true
 
 volumes:
   redis-data:
   postgres-data:
-  argocd-data:
-  argocd-redis-data:
+
   kube-config:
   prometheus-data:
   grafana-data:
