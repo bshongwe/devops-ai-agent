@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: E2E K8s 3-Tier DevSecOps App
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bshongwe/end-2-end-k8s-3-tier-dev-sec-ops-project.git
+    targetRevision: HEAD
+    path: helm-guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
