@@ -395,7 +395,7 @@ curl http://localhost:3000/dashboard/health
 flowchart TD
     subgraph "Health Monitoring Flow"
         API[CI-CD Agent<br/>:3000]
-        HEALTH[/dashboard/health]
+        HEALTH[Health Endpoint<br/>/dashboard/health]
         
         subgraph "Service Checks"
             PG_CHECK[PostgreSQL<br/>TCP:5432]
