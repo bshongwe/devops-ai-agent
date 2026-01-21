@@ -32,7 +32,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.2",
     "@nestjs/platform-express": "^10.0.0",
-    "@nestjs/swagger": "^7.1.17",
+    "@nestjs/swagger": "^11.2.2",
     "@octokit/app": "^14.0.2",
     "@octokit/rest": "^20.0.2",
     "@willsoto/nestjs-prometheus": "^6.0.2",
